@@ -257,3 +257,62 @@ def load_data(
     return loader, val_loader, test_loader
   else:
     return loader, val_loader
+  
+
+
+
+def load_data_motion(
+    data_path_A,
+    data_path_B,
+    batch_size,
+    image_size,
+    deterministic=False,
+    include_test=False,
+    seed=42,
+    num_workers=2,
+):
+  # Compute batch size for this worker.
+    # root = data_dir
+  
+
+    from .aligned_dataset import MotionDataset
+    trainset = MotionDataset(data_path_A, data_path_B, train=True)
+
+    valset = MotionDataset(data_path_A, data_path_B, train=True)
+    if include_test:
+        testset = MotionDataset(dataroot=root, train=False)
+
+
+    
+    loader = DataLoader(
+        dataset=trainset, num_workers=num_workers, pin_memory=True,
+        batch_sampler=DistInfiniteBatchSampler(
+            dataset_len=len(trainset), glb_batch_size=batch_size*dist.get_world_size(), seed=seed,
+            shuffle=not deterministic, filling=True, rank=dist.get_rank(), world_size=dist.get_world_size(),
+        )
+    )
+    
+    
+    num_tasks = dist.get_world_size()
+    global_rank = dist.get_rank()
+    sampler = torch.utils.data.DistributedSampler(
+            valset, num_replicas=num_tasks, rank=global_rank, shuffle=False, drop_last=False
+        )
+    val_loader = torch.utils.data.DataLoader(
+        valset, batch_size=batch_size,
+        sampler=sampler, num_workers=num_workers,  drop_last=False)
+    
+    if include_test:
+        
+        num_tasks = dist.get_world_size()
+        global_rank = dist.get_rank()
+        sampler = torch.utils.data.DistributedSampler(
+                testset, num_replicas=num_tasks, rank=global_rank, shuffle=False, drop_last=False
+            )
+        test_loader = torch.utils.data.DataLoader(
+        testset, batch_size=batch_size,
+        sampler=sampler, num_workers=num_workers,  shuffle=False,drop_last=False)
+        
+        return loader, val_loader, test_loader
+    else:
+        return loader, val_loader

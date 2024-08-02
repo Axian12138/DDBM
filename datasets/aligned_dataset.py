@@ -231,3 +231,67 @@ class DIODE(torch.utils.data.Dataset):
             return len(self.filenames)
     
 
+
+import joblib
+
+class MotionDataset(torch.utils.data.Dataset):
+    """A dataset class for paired image dataset.
+    It assumes that the directory '/path/to/data/train' contains image pairs in the form of {A,B}.
+    During test time, you need to prepare a directory '/path/to/data/test'.
+    """
+
+    def __init__(self, data_path_A, data_path_B, train=True):
+        """Initialize this dataset class.
+        Parameters:
+            opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
+        """
+        super().__init__()
+        data_list_A = joblib.load(data_path_A)
+        data_list_B = joblib.load(data_path_B)
+        self.jt_A = []
+        self.jt_B = []
+        self.root_A = []
+        self.root_B = []
+        motion_length = []
+        # start_id = []
+        # current_id = 0
+        for (name, data_A), data_B in zip(data_list_A.items(), data_list_B):
+            if data_B is not None:
+                target_jt_A = torch.from_numpy(data_A['jt'])#.to(device)
+                target_global_pos_A = torch.from_numpy(data_A['global'])[:,:3]#.to(device)
+                target_global_ori_A = torch.from_numpy(data_A['global'])[:,20*3:20*3+6]#.to(device)
+                target_jt_B = torch.from_numpy(data_B['jt'])#.to(device)
+                target_global_pos_B = torch.from_numpy(data_B['global'])[:,:3]#.to(device)
+                target_global_ori_B = torch.from_numpy(data_B['global'])[:,20*3:20*3+6]#.to(device)
+                self.jt_A.append(target_jt_A)
+                self.jt_B.append(target_jt_B)
+                self.root_A.append(torch.concat([target_global_pos_A, target_global_ori_A], dim=1))
+                self.root_B.append(torch.concat([target_global_pos_B, target_global_ori_B], dim=1))
+                motion_length.append(target_jt_A.shape[0])
+        # target_jt = torch.cat(target_jt, dim=0).to(device)
+        # target_global = torch.cat(target_global, dim=0).to(device)
+        max_length = torch.tensor(motion_length, dtype=torch.long).max()
+        self.pad = torch.zeros((max_length, 20, 3), dtype=torch.float32)
+        # start_id = torch.zeros_like(target_length, dtype=torch.long)
+        # start_id[1:] = torch.cumsum(target_length[:-1], dim=0)
+            
+        self.train = train
+
+
+    def __getitem__(self, index):
+        """Return a data point and its metadata information.
+        Parameters:
+            index - - a random integer for data indexing
+        Returns a dictionary that contains A, B
+            A (tensor) - - an motion in the input jt_A and root_A
+            B (tensor) - - its corresponding target motion
+        """
+        A = torch.concat(self.jt_A[index], self.root_A[index])
+        B = torch.concat(self.jt_B[index], self.root_B[index])
+        return A, B
+
+        
+
+    def __len__(self):
+        """Return the total number of images in the dataset."""
+        return len(self.AB_paths)
