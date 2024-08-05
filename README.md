@@ -1,13 +1,4 @@
-# Denoising Diffusion Bridge Models (ICLR 2024)
 
-Official Implementation of [Denoising Diffusion Bridge Models](https://arxiv.org/abs/2309.16948). 
-
-<p align="center">
-  <img src="assets/teaser.png" width="100%"/>
-</p>
-
-
-# Dependencies
 
 To install all packages in this codebase along with their dependencies, run
 ```sh
@@ -23,11 +14,6 @@ We provide pretrained checkpoints via Huggingface repo [here](https://huggingfac
 
  * DDBM on Edges2Handbags (VP): [ddbm_e2h_vp_ema.pt](https://huggingface.co/alexzhou907/DDBM/resolve/main/e2h_ema_0.9999_420000.pt)
  * DDBM on DIODE (VP): [ddbm_diode_vp_ema.pt](https://huggingface.co/alexzhou907/DDBM/resolve/main/diode_ema_0.9999_440000.pt)
-
-# Datasets
-
-For Edges2Handbags, please follow instructions from [here](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/datasets.md).
-For DIODE, please download appropriate datasets from [here](https://diode-dataset.org/).
 
 
 # Model training and sampling
