@@ -5,7 +5,7 @@ Train a diffusion model on images.
 import argparse
 
 from ddbm import logger , dist_util
-from datasets import load_data
+from datasets import load_data_motion
 from ddbm.resample import create_named_schedule_sampler
 from ddbm.script_util import (
     model_and_diffusion_defaults,
@@ -53,6 +53,13 @@ def main(args):
                     logger.log('Resuming from checkpoint: ', max_ckpt)
 
 
+    data, test_data = load_data_motion(
+        data_path=args.data_path,
+        # data_path_B=args.data_path_B,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+    )
+
     model, diffusion = create_model_and_diffusion_mrm(
         args
     )
@@ -75,13 +82,6 @@ def main(args):
     if dist.get_rank() == 0:
         logger.log("creating data loader...")
 
-    data, test_data = load_data(
-        data_path_A=args.data_path_A,
-        data_path_B=args.data_path_B,
-        batch_size=batch_size,
-        image_size=data_image_size,
-        num_workers=args.num_workers,
-    )
     
     if args.use_augment:
         augment = AugmentPipe(
@@ -90,6 +90,7 @@ def main(args):
     else:
         augment = None
         
+    breakpoint()
     logger.log("training...")
     TrainLoop(
         model=model,
@@ -126,7 +127,7 @@ def create_argparser():
         lr_anneal_steps=0,
         global_batch_size=2048,
         batch_size=-1,
-        microbatch=-1,  # -1 disables microbatches
+        microbatch=1,  # -1 disables microbatches
         ema_rate="0.9999",  # comma-separated list of EMA values
         log_interval=50,
         test_interval=500,
@@ -138,7 +139,9 @@ def create_argparser():
         fp16_scale_growth=1e-3,
         debug=False,
         num_workers=2,
-        use_augment=False
+        use_augment=False,
+        data_path='/home/ubuntu/data/PHC/recycle_2215.pkl',
+        # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

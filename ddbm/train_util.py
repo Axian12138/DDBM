@@ -65,7 +65,7 @@ class TrainLoop:
         self.diffusion = diffusion
         self.data = train_data
         self.test_data = test_data
-        self.image_size = model.image_size
+        # self.image_size = model.image_size
         self.batch_size = batch_size
         self.microbatch = microbatch if microbatch > 0 else batch_size
         self.lr = lr
@@ -198,11 +198,8 @@ class TrainLoop:
             dist.barrier()
 
     def preprocess(self, x):
-        if x.shape[1] == 3:
-            x =  x * 2 - 1
-
-            
-                
+        # if x.shape[1] == 3:
+        #     x =  x * 2 - 1
         return x
 
     def run_loop(self):
@@ -271,6 +268,7 @@ class TrainLoop:
             self.forward_backward(batch, cond, train=False)
 
     def forward_backward(self, batch, cond, train=True):
+        breakpoint()
         if train:
             self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):

@@ -76,6 +76,11 @@ def model_and_diffusion_defaults():
         condition_mode=None,
         pred_mode='ve',
         weight_schedule="karras",
+        layers=8,
+        latent_dim=512,
+        cond_mask_prob=1.0,
+        emb_trans_dec=False,
+        arch='trans_enc',
     )
     return res
 
@@ -170,7 +175,7 @@ def get_model_args_mrm(args):
     # default args
     # clip_version = 'ViT-B/32'
     action_emb = 'tensor'
-    cond_mode = args.cond_mode
+    cond_mode = 'none'
     # if hasattr(data.dataset, 'num_actions'):
     #     num_actions = data.dataset.num_actions
     # else:
@@ -178,8 +183,8 @@ def get_model_args_mrm(args):
 
     # SMPL defaults
     data_rep = 'rot6d'
-    njoints = 25
-    nfeats = 6
+    njoints = 28
+    nfeats = 1
 
     if args.dataset == 'humanml':
         data_rep = 'hml_vec'
@@ -192,6 +197,7 @@ def get_model_args_mrm(args):
 
     return {'modeltype': '', 'njoints': njoints, 'nfeats': nfeats, 'num_actions': num_actions,
             'translation': True, 'pose_rep': 'rot6d', 'glob': True, 'glob_rot': True,
+            'use_fp16': args.use_fp16,
             'latent_dim': args.latent_dim, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
             'dropout': 0.1, 'activation': "gelu", 'data_rep': data_rep, 'cond_mode': cond_mode,
             'cond_mask_prob': args.cond_mask_prob, 'action_emb': action_emb, 'arch': args.arch,

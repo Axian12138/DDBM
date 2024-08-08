@@ -14,28 +14,18 @@ COV_XY=0
 
 NUM_CH=256
 ATTN=32,16,8
-SAMPLER=real-uniform
+SAMPLER=uniform
+# real-uniform??
 NUM_RES_BLOCKS=2
-USE_16FP=True
+USE_16FP=False # True
 ATTN_TYPE=flash
-if [[ $DATASET_NAME == "e2h" ]]; then
-    DATA_DIR=YOUR_DATASET_PATH
-    DATASET=edges2handbags
-    IMG_SIZE=64
-    NUM_CH=192
-    NUM_RES_BLOCKS=3
-    EXP="e2h${IMG_SIZE}_${NUM_CH}d"
-    SAVE_ITER=100000
-elif [[ $DATASET_NAME == "diode" ]]; then
-    DATA_DIR=YOUR_DATASET_PATH
-    DATASET=diode
-    IMG_SIZE=256
-    SIGMA_MAX=20.0
-    SIGMA_MIN=0.0005
 
-    EXP="diode${IMG_SIZE}_${NUM_CH}d"
-    SAVE_ITER=20000
-fi
+DATA_DIR=YOUR_DATASET_PATH
+DATASET=edges2handbags
+NUM_CH=192
+NUM_RES_BLOCKS=3
+EXP="test_${NUM_CH}d"
+SAVE_ITER=100000
     
 if  [[ $PRED == "ve" ]]; then
     EXP+="_ve"
@@ -63,10 +53,4 @@ else
 fi
 
 
-
-if [[ $IMG_SIZE == 256 ]]; then
-    BS=16
-else
-    BS=192
-fi
-
+BS=192

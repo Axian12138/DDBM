@@ -262,10 +262,9 @@ def load_data(
 
 
 def load_data_motion(
-    data_path_A,
-    data_path_B,
+    data_path,
+    # data_path_B,
     batch_size,
-    image_size,
     deterministic=False,
     include_test=False,
     seed=42,
@@ -276,9 +275,9 @@ def load_data_motion(
   
 
     from .aligned_dataset import MotionDataset
-    trainset = MotionDataset(data_path_A, data_path_B, train=True)
+    trainset = MotionDataset(data_path, train=True)
 
-    valset = MotionDataset(data_path_A, data_path_B, train=True)
+    valset = MotionDataset(data_path, train=True)
     if include_test:
         testset = MotionDataset(dataroot=root, train=False)
 

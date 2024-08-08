@@ -6,7 +6,7 @@ import numpy as np
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-from piq import LPIPS
+# from piq import LPIPS
 
 
 from .nn import mean_flat, append_dims, append_zero
@@ -26,7 +26,7 @@ class KarrasDenoiser:
     def __init__(
         self,
         sigma_data: float = 0.5,
-        sigma_max=80.0,
+        sigma_max=80,
         sigma_min=0.002,
         beta_d=2,
         beta_min=0.1,
@@ -54,10 +54,10 @@ class KarrasDenoiser:
         self.weight_schedule = weight_schedule
         self.pred_mode = pred_mode
         self.loss_norm = loss_norm
-        if loss_norm == "lpips":
-            self.lpips_loss = LPIPS(replace_pooling=True, reduction="none")
+        # if loss_norm == "lpips":
+        #     self.lpips_loss = LPIPS(replace_pooling=True, reduction="none")
         self.rho = rho
-        self.num_timesteps = 40
+        self.num_timesteps = 100#40
         self.image_size = image_size
 
 
@@ -151,11 +151,12 @@ class KarrasDenoiser:
 
     def training_bridge_losses(self, model, x_start, sigmas, model_kwargs=None, noise=None, vae=None):
         
+        breakpoint()
         assert model_kwargs is not None
         xT = model_kwargs['xT']
         if noise is None:
             noise = th.randn_like(x_start) 
-        sigmas =th.minimum(sigmas, th.ones_like(sigmas)* self.sigma_max)
+        sigmas =th.minimum(sigmas, th.ones_like(sigmas, dtype=sigmas.dtype)* self.sigma_max)
         terms = {}
 
         dims = x_start.ndim
@@ -184,7 +185,7 @@ class KarrasDenoiser:
 
         model_output, denoised = self.denoise(model, x_t, sigmas,  **model_kwargs)
 
-        weights = self.get_weightings(sigmas)
+        weights = self.get_weightings(sigmas.type(x_start.dtype))
         
         weights =  append_dims((weights), dims)
         terms["xs_mse"] = mean_flat((denoised - x_start) ** 2)
@@ -200,13 +201,13 @@ class KarrasDenoiser:
 
 
     def denoise(self, model, x_t, sigmas ,**model_kwargs):
-
+        breakpoint()
         c_skip, c_out, c_in = [
             append_dims(x, x_t.ndim) for x in self.get_bridge_scalings(sigmas)
         ]
                
-        rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
-        model_output = model(c_in * x_t, rescaled_t, **model_kwargs)
+        # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
+        model_output = model(c_in * x_t, sigmas, **model_kwargs)
         denoised = c_out * model_output + c_skip * x_t
         return model_output, denoised
 

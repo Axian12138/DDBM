@@ -8,14 +8,6 @@ conda install -c conda-forge mpi4py openmpi
 pip install -e .
 ```
 
-# Pre-trained models
-
-We provide pretrained checkpoints via Huggingface repo [here](https://huggingface.co/alexzhou907/DDBM). It includes models trained on two image-to-image datasets using Variance-Preserving (VP) schedules:
-
- * DDBM on Edges2Handbags (VP): [ddbm_e2h_vp_ema.pt](https://huggingface.co/alexzhou907/DDBM/resolve/main/e2h_ema_0.9999_420000.pt)
- * DDBM on DIODE (VP): [ddbm_diode_vp_ema.pt](https://huggingface.co/alexzhou907/DDBM/resolve/main/diode_ema_0.9999_440000.pt)
-
-
 # Model training and sampling
 
 We provide bash files [train_ddbm.sh](train_ddbm.sh) and [sample_ddbm.sh](sample_ddbm.sh) for model training and sampling. 
@@ -26,7 +18,7 @@ Simply set variables `DATASET_NAME` and `SCHEDULE_TYPE`:
 
 To train, run
 ```
-bash train_ddbm.sh $DATASET_NAME $SCHEDULE_TYPE 
+bash train_ddbm.sh test ve
 
 # to resume, set CKPT to your checkpoint, or it will automatically resume from your last checkpoint based on your experiment name.
 

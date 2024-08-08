@@ -3,7 +3,8 @@ import torch
 import random
 import numpy as np
 import torchvision.transforms as transforms
-from .image_folder import make_dataset
+# from .image_folder import make_dataset
+from .diff_quat import *
 from PIL import Image
 
 import torchvision
@@ -240,41 +241,68 @@ class MotionDataset(torch.utils.data.Dataset):
     During test time, you need to prepare a directory '/path/to/data/test'.
     """
 
-    def __init__(self, data_path_A, data_path_B, train=True):
+    def __init__(self, data_path, train=True):
         """Initialize this dataset class.
         Parameters:
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
         """
         super().__init__()
-        data_list_A = joblib.load(data_path_A)
-        data_list_B = joblib.load(data_path_B)
+        # data_list_A = joblib.load(data_path_A)
+        # data_list_B = joblib.load(data_path_B)
         self.jt_A = []
         self.jt_B = []
         self.root_A = []
         self.root_B = []
         motion_length = []
+        self.names = []
         # start_id = []
         # current_id = 0
-        for (name, data_A), data_B in zip(data_list_A.items(), data_list_B):
-            if data_B is not None:
-                target_jt_A = torch.from_numpy(data_A['jt'])#.to(device)
-                target_global_pos_A = torch.from_numpy(data_A['global'])[:,:3]#.to(device)
-                target_global_ori_A = torch.from_numpy(data_A['global'])[:,20*3:20*3+6]#.to(device)
-                target_jt_B = torch.from_numpy(data_B['jt'])#.to(device)
-                target_global_pos_B = torch.from_numpy(data_B['global'])[:,:3]#.to(device)
-                target_global_ori_B = torch.from_numpy(data_B['global'])[:,20*3:20*3+6]#.to(device)
-                self.jt_A.append(target_jt_A)
-                self.jt_B.append(target_jt_B)
-                self.root_A.append(torch.concat([target_global_pos_A, target_global_ori_A], dim=1))
-                self.root_B.append(torch.concat([target_global_pos_B, target_global_ori_B], dim=1))
-                motion_length.append(target_jt_A.shape[0])
-        # target_jt = torch.cat(target_jt, dim=0).to(device)
-        # target_global = torch.cat(target_global, dim=0).to(device)
-        max_length = torch.tensor(motion_length, dtype=torch.long).max()
-        self.pad = torch.zeros((max_length, 20, 3), dtype=torch.float32)
+        # for (name, data_A), data_B in zip(data_list_A.items(), data_list_B):
+        #     if data_B is not None:
+        #         target_jt_A = torch.from_numpy(data_A['jt'])#.to(device)
+        #         target_global_pos_A = torch.from_numpy(data_A['global'])[:,:3]#.to(device)
+        #         target_global_ori_A = torch.from_numpy(data_A['global'])[:,20*3:20*3+6]#.to(device)
+        #         target_jt_B = torch.from_numpy(data_B['jt'])#.to(device)
+        #         target_global_pos_B = torch.from_numpy(data_B['global'])[:,:3]#.to(device)
+        #         target_global_ori_B = torch.from_numpy(data_B['global'])[:,20*3:20*3+6]#.to(device)
+        #         self.jt_A.append(target_jt_A)
+        #         self.jt_B.append(target_jt_B)
+        #         self.root_A.append(torch.concat([target_global_pos_A, target_global_ori_A], dim=1))
+        #         self.root_B.append(torch.concat([target_global_pos_B, target_global_ori_B], dim=1))
+        #         motion_length.append(target_jt_A.shape[0])
+        # # target_jt = torch.cat(target_jt, dim=0).to(device)
+        # # target_global = torch.cat(target_global, dim=0).to(device)
         # start_id = torch.zeros_like(target_length, dtype=torch.long)
         # start_id[1:] = torch.cumsum(target_length[:-1], dim=0)
-            
+        recycle_data_list = joblib.load(data_path)
+        for data_pair in recycle_data_list:
+            if data_pair is None:
+                continue
+            name = data_pair['name']
+            self.names.append(name)
+          
+            target_jt_A = torch.from_numpy(data_pair['jt_A'])[:,:19]#.to(device)
+            target_global_pos_A = torch.from_numpy(data_pair['global_A'])[:,:3]#.to(device)
+            target_global_ori_A = torch.from_numpy(data_pair['global_A'])[:,20*3:20*3+6]#.to(device)
+            target_jt_B = torch.from_numpy(data_pair['jt_B'])[:,:19]#.to(device)
+            target_global_pos_B = torch.from_numpy(data_pair['global_B'])[:,:3]#.to(device)
+            target_global_ori_B = torch.from_numpy(data_pair['global_B'])[:,20*3:20*3+6]#.to(device)
+            self.jt_A.append(target_jt_A)
+            self.jt_B.append(target_jt_B)
+            self.root_A.append(torch.concat([target_global_pos_A, target_global_ori_A], dim=1))
+            self.root_B.append(torch.concat([target_global_pos_B, target_global_ori_B], dim=1))
+            motion_length.append(target_jt_A.shape[0])
+        self.jt_A = torch.cat(self.jt_A, dim=0)
+        self.jt_B = torch.cat(self.jt_B, dim=0)
+        self.root_A = torch.cat(self.root_A, dim=0)
+        self.root_B = torch.cat(self.root_B, dim=0)
+        self.motion_length = torch.tensor(motion_length, dtype=torch.long)
+        self.length = len(motion_length)
+        self.max_length = self.motion_length.max()
+        # self.pad = torch.zeros((max_length, 19+3+6)).to(self.jt_A)
+        self.start_id = torch.zeros_like(self.motion_length, dtype=torch.long)
+        self.start_id[1:] = torch.cumsum(self.motion_length[:-1], dim=0)
+                    
         self.train = train
 
 
@@ -286,12 +314,18 @@ class MotionDataset(torch.utils.data.Dataset):
             A (tensor) - - an motion in the input jt_A and root_A
             B (tensor) - - its corresponding target motion
         """
-        A = torch.concat(self.jt_A[index], self.root_A[index])
-        B = torch.concat(self.jt_B[index], self.root_B[index])
-        return A, B
+        motion_length = self.motion_length[index]
+        jt_A = self.jt_A[self.start_id[index]:self.start_id[index]+motion_length]
+        jt_B = self.jt_B[self.start_id[index]:self.start_id[index]+motion_length]
+        root_A = self.root_A[self.start_id[index]:self.start_id[index]+motion_length]
+        root_B = self.root_B[self.start_id[index]:self.start_id[index]+motion_length]
+        zero_pad = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
+        A = torch.concat([torch.concat([jt_A, root_A], dim=1), zero_pad], dim=0)
+        B = torch.concat([torch.concat([jt_B, root_B], dim=1), zero_pad], dim=0)
+        return B, A, self.names[index]
 
         
 
     def __len__(self):
         """Return the total number of images in the dataset."""
-        return len(self.AB_paths)
+        return self.length
