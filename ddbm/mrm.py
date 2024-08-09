@@ -119,7 +119,7 @@ class MRM(nn.Module):
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
         """
-        breakpoint()
+        # breakpoint()
         # bs, njoints, nfeats, nframes = x.shape
         bs, nframes, njoints  = x.shape
         emb = self.embed_timestep(timesteps)  # [1, bs, d]
@@ -165,7 +165,7 @@ class MRM(nn.Module):
             xseq = x
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen, bs, d]
             output, _ = self.gru(xseq)
-        breakpoint()
+        # breakpoint()
         output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
 
         return output

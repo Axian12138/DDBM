@@ -36,7 +36,13 @@ def main(args):
     logger.configure(dir=workdir)
     if dist.get_rank() == 0:
         name = args.exp if args.resume_checkpoint == "" else args.exp + '_resume'
-        wandb.init(project="bridge", group=args.exp,name=name, config=vars(args), mode='online' if not args.debug else 'disabled')
+        wandb.init(
+            project="bridge", 
+            group=args.exp,
+            name=name, 
+            config=vars(args), 
+            entity="axian",
+            mode='online' if not args.debug else 'disabled')
         logger.log("creating model and diffusion...")
     
 
@@ -90,7 +96,7 @@ def main(args):
     else:
         augment = None
         
-    breakpoint()
+    # breakpoint()
     logger.log("training...")
     TrainLoop(
         model=model,
@@ -127,7 +133,7 @@ def create_argparser():
         lr_anneal_steps=0,
         global_batch_size=2048,
         batch_size=-1,
-        microbatch=1,  # -1 disables microbatches
+        microbatch=16,  # -1 disables microbatches
         ema_rate="0.9999",  # comma-separated list of EMA values
         log_interval=50,
         test_interval=500,
@@ -140,7 +146,7 @@ def create_argparser():
         debug=False,
         num_workers=2,
         use_augment=False,
-        data_path='/home/ubuntu/data/PHC/recycle_2215.pkl',
+        data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )
     defaults.update(model_and_diffusion_defaults())

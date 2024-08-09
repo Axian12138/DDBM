@@ -268,7 +268,7 @@ class TrainLoop:
             self.forward_backward(batch, cond, train=False)
 
     def forward_backward(self, batch, cond, train=True):
-        breakpoint()
+        # breakpoint()
         if train:
             self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):

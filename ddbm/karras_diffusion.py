@@ -151,7 +151,7 @@ class KarrasDenoiser:
 
     def training_bridge_losses(self, model, x_start, sigmas, model_kwargs=None, noise=None, vae=None):
         
-        breakpoint()
+        # breakpoint()
         assert model_kwargs is not None
         xT = model_kwargs['xT']
         if noise is None:
@@ -201,7 +201,7 @@ class KarrasDenoiser:
 
 
     def denoise(self, model, x_t, sigmas ,**model_kwargs):
-        breakpoint()
+        # breakpoint()
         c_skip, c_out, c_in = [
             append_dims(x, x_t.ndim) for x in self.get_bridge_scalings(sigmas)
         ]
