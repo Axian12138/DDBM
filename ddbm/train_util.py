@@ -228,6 +228,7 @@ class TrainLoop:
                     logs = logger.dumpkvs()
 
                     if dist.get_rank() == 0:
+                        # breakpoint()
                         wandb.log(logs, step=self.step)
                         
                 if took_step and self.step % self.save_interval == 0:
@@ -268,7 +269,7 @@ class TrainLoop:
             self.forward_backward(batch, cond, train=False)
 
     def forward_backward(self, batch, cond, train=True):
-        breakpoint()
+        # breakpoint()
         if train:
             self.mp_trainer.zero_grad()
         for i in range(0, batch.shape[0], self.microbatch):
@@ -418,3 +419,4 @@ def log_loss_dict(diffusion, ts, losses):
         for sub_t, sub_loss in zip(ts.cpu().numpy(), values.detach().cpu().numpy()):
             quartile = int(4 * sub_t / diffusion.num_timesteps)
             logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
+    # breakpoint()

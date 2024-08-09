@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -78,7 +79,13 @@ class MRM(nn.Module):
         else:
             raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru]')
 
-        self.embed_timestep = TimestepEmbedder(self.latent_dim, self.sequence_pos_encoder)
+        # self.embed_timestep = TimestepEmbedder(self.latent_dim, self.sequence_pos_encoder)
+        self.model_channels = self.latent_dim // 4
+        self.embed_timestep = nn.Sequential(
+            nn.Linear(self.model_channels, self.latent_dim),
+            nn.SiLU(),
+            nn.Linear(self.latent_dim, self.latent_dim),
+        )
 
         if self.cond_mode != 'no_cond':
             if 'text' in self.cond_mode:
@@ -119,10 +126,12 @@ class MRM(nn.Module):
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
         """
-        breakpoint()
+        # breakpoint()
         # bs, njoints, nfeats, nframes = x.shape
         bs, nframes, njoints  = x.shape
-        emb = self.embed_timestep(timesteps)  # [1, bs, d]
+        # emb = self.embed_timestep(timesteps)  # [1, bs, d]
+        # breakpoint()
+        emb = self.embed_timestep(timestep_embedding(timesteps, self.model_channels)).unsqueeze(0)
 
         # force_mask = y.get('uncond', False)
         # if 'text' in self.cond_mode:
@@ -165,7 +174,7 @@ class MRM(nn.Module):
             xseq = x
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen, bs, d]
             output, _ = self.gru(xseq)
-        breakpoint()
+        # breakpoint()
         output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
 
         return output
@@ -212,21 +221,41 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
-class TimestepEmbedder(nn.Module):
-    def __init__(self, latent_dim, sequence_pos_encoder):
-        super().__init__()
-        self.latent_dim = latent_dim
-        self.sequence_pos_encoder = sequence_pos_encoder
+# class TimestepEmbedder(nn.Module):
+    # def __init__(self, latent_dim, sequence_pos_encoder):
+    #     super().__init__()
+    #     self.latent_dim = latent_dim
+    #     self.sequence_pos_encoder = sequence_pos_encoder
 
-        time_embed_dim = self.latent_dim
-        self.time_embed = nn.Sequential(
-            nn.Linear(self.latent_dim, time_embed_dim),
-            nn.SiLU(),
-            nn.Linear(time_embed_dim, time_embed_dim),
-        )
+    #     time_embed_dim = self.latent_dim
+    #     self.time_embed = nn.Sequential(
+    #         nn.Linear(self.latent_dim, time_embed_dim),
+    #         nn.SiLU(),
+    #         nn.Linear(time_embed_dim, time_embed_dim),
+    #     )
 
-    def forward(self, timesteps):
-        return self.time_embed(self.sequence_pos_encoder.pe[timesteps]).permute(1, 0, 2)
+    # def forward(self, timesteps):
+    #     return self.time_embed(self.sequence_pos_encoder.pe[timesteps]).permute(1, 0, 2)
+
+def timestep_embedding(timesteps, dim, max_period=10000):
+    """
+    Create sinusoidal timestep embeddings.
+
+    :param timesteps: a 1-D Tensor of N indices, one per batch element.
+                      These may be fractional.
+    :param dim: the dimension of the output.
+    :param max_period: controls the minimum frequency of the embeddings.
+    :return: an [N x dim] Tensor of positional embeddings.
+    """
+    half = dim // 2
+    freqs = torch.exp(
+        -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
+    ).to(device=timesteps.device)
+    args = timesteps[:, None].float() * freqs[None]
+    embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+    if dim % 2:
+        embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
+    return embedding
 
 
 class InputProcess(nn.Module):

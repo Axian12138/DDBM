@@ -36,7 +36,12 @@ def main(args):
     logger.configure(dir=workdir)
     if dist.get_rank() == 0:
         name = args.exp if args.resume_checkpoint == "" else args.exp + '_resume'
-        wandb.init(project="bridge", group=args.exp,name=name, config=vars(args), mode='online' if not args.debug else 'disabled')
+        wandb.init(project="bridge", 
+                   group=args.exp,
+                   name=name, 
+                    entity="axian",
+                   config=vars(args), 
+                   mode='online' if not args.debug else 'disabled')
         logger.log("creating model and diffusion...")
     
 
@@ -90,7 +95,7 @@ def main(args):
     else:
         augment = None
         
-    breakpoint()
+    # breakpoint()
     logger.log("training...")
     TrainLoop(
         model=model,
@@ -127,7 +132,7 @@ def create_argparser():
         lr_anneal_steps=0,
         global_batch_size=2048,
         batch_size=-1,
-        microbatch=1,  # -1 disables microbatches
+        microbatch=16,  # -1 disables microbatches
         ema_rate="0.9999",  # comma-separated list of EMA values
         log_interval=50,
         test_interval=500,

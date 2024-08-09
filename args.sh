@@ -14,8 +14,7 @@ COV_XY=0
 
 NUM_CH=256
 ATTN=32,16,8
-SAMPLER=uniform
-# real-uniform??
+SAMPLER=real-uniform # real-uniform??
 NUM_RES_BLOCKS=2
 USE_16FP=False # True
 ATTN_TYPE=flash
@@ -53,4 +52,4 @@ else
 fi
 
 
-BS=192
+# BS=192

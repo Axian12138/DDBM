@@ -322,6 +322,8 @@ class MotionDataset(torch.utils.data.Dataset):
         zero_pad = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
         A = torch.concat([torch.concat([jt_A, root_A], dim=1), zero_pad], dim=0)
         B = torch.concat([torch.concat([jt_B, root_B], dim=1), zero_pad], dim=0)
+        A = A[:1000]
+        B = B[:1000]
         return B, A, self.names[index]
 
         
