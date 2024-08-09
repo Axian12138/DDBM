@@ -36,13 +36,12 @@ def main(args):
     logger.configure(dir=workdir)
     if dist.get_rank() == 0:
         name = args.exp if args.resume_checkpoint == "" else args.exp + '_resume'
-        wandb.init(
-            project="bridge", 
-            group=args.exp,
-            name=name, 
-            config=vars(args), 
-            entity="axian",
-            mode='online' if not args.debug else 'disabled')
+        wandb.init(project="bridge", 
+                   group=args.exp,
+                   name=name, 
+                    entity="axian",
+                   config=vars(args), 
+                   mode='online' if not args.debug else 'disabled')
         logger.log("creating model and diffusion...")
     
 

@@ -196,6 +196,7 @@ class KarrasDenoiser:
         else:
             terms["loss"] = terms["mse"]
 
+        # if 
         return terms
     
 

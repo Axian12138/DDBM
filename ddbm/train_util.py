@@ -228,6 +228,7 @@ class TrainLoop:
                     logs = logger.dumpkvs()
 
                     if dist.get_rank() == 0:
+                        # breakpoint()
                         wandb.log(logs, step=self.step)
                         
                 if took_step and self.step % self.save_interval == 0:
@@ -418,3 +419,4 @@ def log_loss_dict(diffusion, ts, losses):
         for sub_t, sub_loss in zip(ts.cpu().numpy(), values.detach().cpu().numpy()):
             quartile = int(4 * sub_t / diffusion.num_timesteps)
             logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
+    # breakpoint()
