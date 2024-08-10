@@ -24,7 +24,7 @@ DATASET=edges2handbags
 NUM_CH=192
 NUM_RES_BLOCKS=3
 EXP="test_${NUM_CH}d"
-SAVE_ITER=100000
+SAVE_ITER=1000
     
 if  [[ $PRED == "ve" ]]; then
     EXP+="_ve"

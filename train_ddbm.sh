@@ -6,7 +6,7 @@ CKPT=$3
 source ./args.sh $DATASET_NAME $PRED
 
 FREQ_SAVE_ITER=20000
-NGPU=2
+NGPU=1
 
 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
  --attention_resolutions $ATTN --class_cond False --use_scale_shift_norm True \
@@ -18,5 +18,5 @@ mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
      ${BETA_D:+ --beta_d="${BETA_D}"} ${BETA_MIN:+ --beta_min="${BETA_MIN}"}  \
       --data_dir=$DATA_DIR --dataset=$DATASET ${CH_MULT:+ --channel_mult="${CH_MULT}"} \
       --num_workers=$NGPU  --sigma_data $SIGMA_DATA --sigma_max=$SIGMA_MAX --sigma_min=$SIGMA_MIN --cov_xy $COV_XY \
-      --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER --debug=False \
+      --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER --debug=True \
       ${CKPT:+ --resume_checkpoint="${CKPT}"} 

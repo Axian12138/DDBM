@@ -145,7 +145,8 @@ def create_argparser():
         debug=False,
         num_workers=2,
         use_augment=False,
-        data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
+        data_path='/home/ubuntu/data/PHC/recycle_2215.pkl',
+        # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )
     defaults.update(model_and_diffusion_defaults())
