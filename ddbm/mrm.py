@@ -49,7 +49,12 @@ class MRM(nn.Module):
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
-        self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+        # self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+
+
+        self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
+        self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+
 
         self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
         self.emb_trans_dec = emb_trans_dec
@@ -101,9 +106,14 @@ class MRM(nn.Module):
                 self.embed_text = nn.Linear(self.smpl_dim, self.latent_dim)
                 print('EMBED SMPL')
 
-        self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
-                                            self.nfeats)
+        # self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
+                                            # self.nfeats)
 
+        self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
+                                            self.nfeats)
+        
+        self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
+                                            self.nfeats)
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
     def parameters_wo_clip(self):
@@ -121,7 +131,7 @@ class MRM(nn.Module):
             return cond
 
 
-    def forward(self, x, timesteps, y=None, xT=None):
+    def forward_bk(self, x, timesteps, y=None, xT=None):
         """
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
@@ -176,6 +186,41 @@ class MRM(nn.Module):
             output, _ = self.gru(xseq)
         # breakpoint()
         output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
+
+        return output
+    
+
+    def forward(self, x, timesteps, y=None, xT=None):
+        """
+        x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
+        timesteps: [batch_size] (int)
+        """
+        # bs, nframes, njoints  = x.shape
+        emb = self.embed_timestep(timestep_embedding(timesteps, self.model_channels)).unsqueeze(0)
+
+        # x = x.type(self.dtype)
+        x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+        # x = self.input_process(x)
+
+        if self.arch == 'trans_enc':
+            # adding the timestep embed
+            xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            output = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+
+        elif self.arch == 'trans_dec':
+            if self.emb_trans_dec:
+                xseq = torch.cat((emb, x), axis=0)
+            else:
+                xseq = x
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            if self.emb_trans_dec:
+                output = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
+            else:
+                output = self.seqTransDecoder(tgt=xseq, memory=emb)
+
+        # output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
+        output = output.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
 
         return output
 
@@ -269,9 +314,8 @@ class InputProcess(nn.Module):
             self.velEmbedding = nn.Linear(self.input_feats, self.latent_dim)
 
     def forward(self, x):
-        bs, nframes, njoints  = x.shape
+        # bs, nframes, njoints  = x.shape
         # bs, njoints, nfeats, nframes = x.shape
-        x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
 
         if self.data_rep in ['rot6d', 'xyz', 'hml_vec']:
             x = self.poseEmbedding(x)  # [seqlen, bs, d]
@@ -312,7 +356,7 @@ class OutputProcess(nn.Module):
             raise ValueError
         # output = output.reshape(nframes, bs, self.njoints, self.nfeats)
         # output = output.permute(1, 2, 3, 0)  # [bs, njoints, nfeats, nframes]
-        output = output.permute(1, 0, 2)  # [bs, nframes, d]
+        # output = output.permute(1, 0, 2)  # [bs, nframes, d]
         return output
 
 

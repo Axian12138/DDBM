@@ -74,6 +74,7 @@ def main():
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         seed=args.seed,
+        human_data_path=args.human_data_path
     )
     if args.split =='train':
         dataloader = all_dataloaders[1]
@@ -191,6 +192,7 @@ def create_argparser():
         num_workers=2,
         guidance=1.,
         data_path='/home/ubuntu/data/PHC/recycle_259.pkl',
+        human_data_path='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl',
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

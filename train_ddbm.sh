@@ -1,6 +1,7 @@
 DATASET_NAME=$1
 PRED=$2
-CKPT=$3
+DEBUG=$3
+CKPT=$4
 
 
 source ./args.sh $DATASET_NAME $PRED
@@ -18,5 +19,5 @@ mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
      ${BETA_D:+ --beta_d="${BETA_D}"} ${BETA_MIN:+ --beta_min="${BETA_MIN}"}  \
       --data_dir=$DATA_DIR --dataset=$DATASET ${CH_MULT:+ --channel_mult="${CH_MULT}"} \
       --num_workers=$NGPU  --sigma_data $SIGMA_DATA --sigma_max=$SIGMA_MAX --sigma_min=$SIGMA_MIN --cov_xy $COV_XY \
-      --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER --debug=True \
-      ${CKPT:+ --resume_checkpoint="${CKPT}"} 
+      --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER \
+      ${CKPT:+ --resume_checkpoint="${CKPT}"}  ${DEBUG:+ --debug="${DEBUG}"} 
