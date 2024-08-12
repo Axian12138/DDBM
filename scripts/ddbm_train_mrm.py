@@ -63,6 +63,7 @@ def main(args):
         # data_path_B=args.data_path_B,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
+        human_data_path=args.human_data_path
     )
 
     model, diffusion = create_model_and_diffusion_mrm(
@@ -145,7 +146,9 @@ def create_argparser():
         debug=False,
         num_workers=2,
         use_augment=False,
-        data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
+        data_path='/home/ubuntu/data/PHC/recycle_259.pkl',
+        human_data_path='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl',
+        # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )
     defaults.update(model_and_diffusion_defaults())

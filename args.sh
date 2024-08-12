@@ -12,7 +12,7 @@ SIGMA_DATA=0.5
 COV_XY=0
 
 
-NUM_CH=256
+# NUM_CH=256
 ATTN=32,16,8
 SAMPLER=real-uniform # real-uniform??
 NUM_RES_BLOCKS=2
@@ -23,8 +23,8 @@ DATA_DIR=YOUR_DATASET_PATH
 DATASET=edges2handbags
 NUM_CH=192
 NUM_RES_BLOCKS=3
-EXP="test_${NUM_CH}d"
-SAVE_ITER=10000
+EXP="${DATASET_NAME}_${NUM_CH}d"
+SAVE_ITER=1000
     
 if  [[ $PRED == "ve" ]]; then
     EXP+="_ve"

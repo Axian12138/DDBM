@@ -24,7 +24,7 @@ bash train_ddbm.sh test ve
 
 bash train_ddbm.sh $DATASET_NAME $SCHEDULE_TYPE $CKPT
 ```
-
+bash sample_ddbm.sh test ve /home/ubuntu/workspace/DDBM/workdir/test_192d_ve/model_000001.pt 0.33 1 train
 
 For inference, additional variables need to be set:
 - `MODEL_PATH` is your checkpoint to be evaluated.

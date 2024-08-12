@@ -241,7 +241,7 @@ class MotionDataset(torch.utils.data.Dataset):
     During test time, you need to prepare a directory '/path/to/data/test'.
     """
 
-    def __init__(self, data_path, train=True):
+    def __init__(self, data_path, train=True, human_data_path = None):
         """Initialize this dataset class.
         Parameters:
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
@@ -275,23 +275,53 @@ class MotionDataset(torch.utils.data.Dataset):
         # start_id = torch.zeros_like(target_length, dtype=torch.long)
         # start_id[1:] = torch.cumsum(target_length[:-1], dim=0)
         recycle_data_list = joblib.load(data_path)
+        if human_data_path is not None:
+            human_data_dict = joblib.load(human_data_path)
+            import pytorch_kinematics as pk
+            chain = pk.build_chain_from_urdf(open("/home/ubuntu/workspace/H1_RL/HST/legged_gym/resources/robots/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
+            human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
         for data_pair in recycle_data_list:
             if data_pair is None:
                 continue
             name = data_pair['name']
             self.names.append(name)
           
-            target_jt_A = torch.from_numpy(data_pair['jt_A'])[:,:19]#.to(device)
-            target_global_pos_A = torch.from_numpy(data_pair['global_A'])[:,:3]#.to(device)
-            target_global_ori_A = torch.from_numpy(data_pair['global_A'])[:,20*3:20*3+6]#.to(device)
+            if human_data_path is not None:
+                target_jt_A = human_data_dict[name]['local_translation'][:,1:].reshape(-1,23*3)#.to(device)
+                # target_jt_A[:,0] = 0
+                target_root_A = human_data_dict[name]['root_transformation']
+                # breakpoint()
+            else:
+                target_jt_A = torch.from_numpy(data_pair['jt_A'])[:,:19]#.to(device)
+                target_global_pos_A = torch.from_numpy(data_pair['global_A'])[:,:3]#.to(device)
+                target_global_ori_A = torch.from_numpy(data_pair['global_A'])[:,20*3:20*3+6]#.to(device)
+                target_root_A = torch.concat([target_global_pos_A, target_global_ori_A], dim=1)
             target_jt_B = torch.from_numpy(data_pair['jt_B'])[:,:19]#.to(device)
             target_global_pos_B = torch.from_numpy(data_pair['global_B'])[:,:3]#.to(device)
             target_global_ori_B = torch.from_numpy(data_pair['global_B'])[:,20*3:20*3+6]#.to(device)
+
+            # ret = chain.forward_kinematics(target_jt_B)
+            # look up the transform for a specific link
+            # left_hand_link = ret['left_hand_link']
+            # left_hand_tg = left_hand_link.get_matrix()[:,:3,3]
+            # right_hand_link = ret['right_hand_link']
+            # right_hand_tg = right_hand_link.get_matrix()[:,:3,3]
+            # left_ankle_link = ret['left_ankle_link']
+            # left_ankle_tg = left_ankle_link.get_matrix()[:,:3,3]
+            # right_ankle_link = ret['right_ankle_link']
+            # right_ankle_tg = right_ankle_link.get_matrix()[:,:3,3]
+            # get transform matrix (1,4,4), then convert to separate position and unit quaternion
+
+
+
             self.jt_A.append(target_jt_A)
             self.jt_B.append(target_jt_B)
-            self.root_A.append(torch.concat([target_global_pos_A, target_global_ori_A], dim=1))
+            self.root_A.append(target_root_A)
             self.root_B.append(torch.concat([target_global_pos_B, target_global_ori_B], dim=1))
             motion_length.append(target_jt_A.shape[0])
+
+
+            
         self.jt_A = torch.cat(self.jt_A, dim=0)
         self.jt_B = torch.cat(self.jt_B, dim=0)
         self.root_A = torch.cat(self.root_A, dim=0)
@@ -319,12 +349,13 @@ class MotionDataset(torch.utils.data.Dataset):
         jt_B = self.jt_B[self.start_id[index]:self.start_id[index]+motion_length]
         root_A = self.root_A[self.start_id[index]:self.start_id[index]+motion_length]
         root_B = self.root_B[self.start_id[index]:self.start_id[index]+motion_length]
-        zero_pad = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
-        A = torch.concat([torch.concat([jt_A, root_A], dim=1), zero_pad], dim=0)
-        B = torch.concat([torch.concat([jt_B, root_B], dim=1), zero_pad], dim=0)
+        zero_pad_A = torch.zeros((self.max_length-motion_length, jt_A.shape[-1]+3+6)).to(jt_A)
+        zero_pad_B = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
+        A = torch.concat([torch.concat([jt_A, root_A], dim=1), zero_pad_A], dim=0)
+        B = torch.concat([torch.concat([jt_B, root_B], dim=1), zero_pad_B], dim=0)
         A = A[:1000]
         B = B[:1000]
-        return B, A, self.names[index]
+        return B, A, index#self.names[index]
 
         
 
