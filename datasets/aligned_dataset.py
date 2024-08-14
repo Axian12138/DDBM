@@ -241,7 +241,7 @@ class MotionDataset(torch.utils.data.Dataset):
     During test time, you need to prepare a directory '/path/to/data/test'.
     """
 
-    def __init__(self, data_path, train=True, human_data_path = None):
+    def __init__(self, data_path, train=True, human_data_path = None, load_pose = False):
         """Initialize this dataset class.
         Parameters:
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
@@ -255,6 +255,7 @@ class MotionDataset(torch.utils.data.Dataset):
         self.root_B = []
         motion_length = []
         self.names = []
+        self.load_pose = load_pose
         # start_id = []
         # current_id = 0
         # for (name, data_A), data_B in zip(data_list_A.items(), data_list_B):
@@ -349,12 +350,19 @@ class MotionDataset(torch.utils.data.Dataset):
         jt_B = self.jt_B[self.start_id[index]:self.start_id[index]+motion_length]
         root_A = self.root_A[self.start_id[index]:self.start_id[index]+motion_length]
         root_B = self.root_B[self.start_id[index]:self.start_id[index]+motion_length]
-        zero_pad_A = torch.zeros((self.max_length-motion_length, jt_A.shape[-1]+3+6)).to(jt_A)
-        zero_pad_B = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
-        A = torch.concat([torch.concat([jt_A, root_A], dim=1), zero_pad_A], dim=0)
-        B = torch.concat([torch.concat([jt_B, root_B], dim=1), zero_pad_B], dim=0)
-        A = A[:1000]
-        B = B[:1000]
+        jt_root_A = torch.concat([jt_A, root_A], dim=1)
+        jt_root_B = torch.concat([jt_B, root_B], dim=1)
+        if self.load_pose:
+            # random choose a pose 
+            A = jt_root_A[torch.randint(jt_root_A.shape[0], (1,))]
+            B = jt_root_B[torch.randint(jt_root_B.shape[0], (1,))]
+        else:
+            zero_pad_A = torch.zeros((self.max_length-motion_length, jt_A.shape[-1]+3+6)).to(jt_A)
+            zero_pad_B = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
+            A = torch.concat([jt_root_A, zero_pad_A], dim=0)
+            B = torch.concat([jt_root_B, zero_pad_B], dim=0)
+            A = A[:1000]
+            B = B[:1000]
         return B, A, index#self.names[index]
 
         

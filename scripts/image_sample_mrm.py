@@ -74,7 +74,8 @@ def main():
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         seed=args.seed,
-        human_data_path=args.human_data_path
+        human_data_path=args.human_data_path,
+        load_pose = args.load_pose
     )
     if args.split =='train':
         dataloader = all_dataloaders[1]
@@ -85,6 +86,7 @@ def main():
     args.num_samples = len(dataloader.dataset)
 
 
+    motion_pkls = []
     
     for i, data in enumerate(dataloader):
         
@@ -97,6 +99,8 @@ def main():
         # y0 = y0_image.to(dist_util.dev()) * 2 - 1
         model_kwargs = {'xT': y0}
         index = data[2].to(dist_util.dev())
+
+        bs = x0.shape[0]
             
             
                 
@@ -108,7 +112,7 @@ def main():
             steps=args.steps,
             model_kwargs=model_kwargs,
             device=dist_util.dev(),
-            clip_denoised=args.clip_denoised,
+            # clip_denoised=args.clip_denoised,
             sampler=args.sampler,
             sigma_min=diffusion.sigma_min,
             sigma_max=diffusion.sigma_max,
@@ -124,22 +128,33 @@ def main():
         
         gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
-        gathered_xs = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
+        gathered_xs = [th.zeros_like(x0) for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_xs, x0)
-        gathered_ys = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
+        gathered_ys = [th.zeros_like(y0) for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_ys, y0)
 
         
         if index is not None:
             gathered_index = [0 for _ in range(dist.get_world_size())]
             gathered_index = [th.zeros_like(index) for _ in range(dist.get_world_size())]
-            # dist.all_gather(gathered_index, index)
-            gathered_index = th.cat(gathered_index)
+            dist.all_gather(gathered_index, index)
+            # gathered_index = th.cat(gathered_index)
             # gathered_samples = gathered_samples[th.argsort(gathered_index)]
         # else:
-        gathered_samples = th.cat(gathered_samples)
-        gathered_xs = th.cat(gathered_xs)
-        gathered_ys = th.cat(gathered_ys)
+        # gathered_samples = th.cat(gathered_samples)
+        # gathered_xs = th.cat(gathered_xs)
+        # gathered_ys = th.cat(gathered_ys)
+        for samples, xs, ys in zip(gathered_samples, gathered_xs, gathered_ys):
+            for id in range(bs):
+                motion_pkl = {
+
+                    'jt_root_B': xs[id].detach().cpu().numpy(),
+                    'jt_root_A': ys[id].detach().cpu().numpy(),
+                    'jt_root_diff': samples[id].detach().cpu().numpy()
+                }
+                # breakpoint()
+                motion_pkls.append(motion_pkl)
+            
 
         # num_display = min(32, sample.shape[0])
         # breakpoint()
@@ -150,23 +165,27 @@ def main():
         #     vutils.save_image(y0_image[:num_display]/2+0.5, f'{sample_dir}/y_{i}.png',nrow=int(np.sqrt(num_display)))
             
             
-        gathered_samples = th.stack([gathered_samples,gathered_xs,gathered_ys],dim=1)
-        all_images.append(gathered_samples.detach().cpu().numpy())
-        all_indices.append(gathered_index.detach().cpu().numpy())
+        # gathered_samples = th.stack([gathered_samples,gathered_xs,gathered_ys],dim=1)
+        # all_images.append(gathered_samples.detach().cpu().numpy())
+        # all_indices.append(gathered_index.detach().cpu().numpy())
 
         
         
-    logger.log(f"created {len(all_images) * args.batch_size * dist.get_world_size()} samples")
+    # logger.log(f"created {len(all_images) * args.batch_size * dist.get_world_size()} samples")
         
 
-    arr = np.concatenate(all_images, axis=0)
+    # arr = np.concatenate(all_images, axis=0)
     # arr = arr[:args.num_samples]
     
     if dist.get_rank() == 0:
-        shape_str = "x".join([str(x) for x in arr.shape])
-        out_path = os.path.join(sample_dir, f"samples_{shape_str}_nfe{nfe}.npz")
+        # shape_str = "x".join([str(x) for x in arr.shape])
+        # out_path = os.path.join(sample_dir, f"samples_{shape_str}_nfe{nfe}.npz")
+        import joblib
+        filename=f"diff_{len(motion_pkls)}.pkl"
+        out_path=f"/home/ubuntu/data/PHC/{filename}"
         logger.log(f"saving to {out_path}")
-        np.savez(out_path, arr)
+        joblib.dump(motion_pkls, out_path)
+        # np.savez(out_path, arr)
 
     dist.barrier()
     logger.log("sampling complete")
@@ -176,7 +195,7 @@ def create_argparser():
     defaults = dict(
         data_dir="", ## only used in bridge
         dataset='edges2handbags',
-        clip_denoised=True,
+        # clip_denoised=True,
         num_samples=10000,
         batch_size=16,
         sampler="heun",
@@ -191,8 +210,9 @@ def create_argparser():
         upscale=False,
         num_workers=2,
         guidance=1.,
-        data_path='/home/ubuntu/data/PHC/recycle_259.pkl',
-        human_data_path='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl',
+        data_path=None,
+        human_data_path=None,
+        load_pose=False,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

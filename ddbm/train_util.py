@@ -281,12 +281,14 @@ class TrainLoop:
             last_batch = (i + self.microbatch) >= batch.shape[0]
             t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
 
+            train_diffusion = self.step > -10000
             compute_losses = functools.partial(
                     self.diffusion.training_bridge_losses,
                     self.ddp_model,
                     micro,
                     t,
                     model_kwargs=micro_cond,
+                    train_diffusion=train_diffusion
                 )
 
             if last_batch or not self.use_ddp:
@@ -301,8 +303,9 @@ class TrainLoop:
                 )
 
             loss = (losses["loss"] * weights).mean()
+            # breakpoint()
             log_loss_dict(
-                self.diffusion, t, {k if train else 'test_'+k: v * weights for k, v in losses.items()}
+                self.diffusion, t, {k if train else 'test_'+k: v * weights if 'loss' in k else v for k, v in losses.items()}
             )
             if train:
                 self.mp_trainer.backward(loss)
@@ -363,6 +366,14 @@ class TrainLoop:
                 "wb",
             ) as f:
                 th.save(self.opt.state_dict(), f)
+        # rm all file under logdir that end with {step}.pt, if step != self.step and step % 10000 !=0
+        import re
+        for filename in os.listdir(get_blob_logdir()):
+            match = re.search(r'_(\d+)\.pt$', filename)
+            if match:
+                step = int(match.group(1))
+                if step != self.step and step % 50000 != 0:
+                    os.remove(os.path.join(get_blob_logdir(), filename))
 
         # Save model parameters last to prevent race conditions where a restart
         # loads model at step N, but opt/ema state isn't saved for step N.

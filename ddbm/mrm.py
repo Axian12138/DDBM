@@ -5,13 +5,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .fp16_util import convert_module_to_f16, convert_module_to_f32
 
+def identity(x):
+    return x
 
 
 class MRM(nn.Module):
     def __init__(self, modeltype, njoints, nfeats, translation, pose_rep, glob, glob_rot,
                  latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
-                use_fp16=False,
-                 ablation=None, activation="gelu", legacy=False, data_rep='rot6d', dataset='amass', clip_dim=512,
+                use_fp16=False, use_latent = False, 
+                 ablation=None, activation="gelu", legacy=False, data_rep='rot6d', clip_dim=512,# dataset='amass',
                  arch='trans_enc', emb_trans_dec=False, clip_version=None, **kargs):
         super().__init__()
 
@@ -22,7 +24,7 @@ class MRM(nn.Module):
         # self.num_actions = num_actions
         self.dtype = torch.float16 if use_fp16 else torch.float32
         self.data_rep = data_rep
-        self.dataset = dataset
+        # self.dataset = dataset
 
         self.pose_rep = pose_rep
         self.glob = glob
@@ -30,6 +32,7 @@ class MRM(nn.Module):
         self.translation = translation
 
         self.latent_dim = latent_dim
+        self.use_latent = use_latent
 
         self.ff_size = ff_size
         self.num_layers = num_layers
@@ -49,15 +52,18 @@ class MRM(nn.Module):
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
-        # self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+        if not use_latent:
+            self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+            self.enc_A = identity
+            self.enc_B = identity
+        else:
+
+            self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
+            self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
 
 
-        self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
-        self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
-
-
-        self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
         self.emb_trans_dec = emb_trans_dec
+        self.debug=False
 
         if self.arch == 'trans_enc':
             print("TRANS_ENC init")
@@ -82,15 +88,20 @@ class MRM(nn.Module):
             print("GRU init")
             self.gru = nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, batch_first=True)
         else:
-            raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru]')
+            print("===============debug=============================")
+            self.debug=True
+            # raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru]')
 
         # self.embed_timestep = TimestepEmbedder(self.latent_dim, self.sequence_pos_encoder)
         self.model_channels = self.latent_dim // 4
-        self.embed_timestep = nn.Sequential(
-            nn.Linear(self.model_channels, self.latent_dim),
-            nn.SiLU(),
-            nn.Linear(self.latent_dim, self.latent_dim),
-        )
+        if not self.debug:
+
+            self.sequence_pos_encoder = PositionalEncoding(self.latent_dim, self.dropout)
+            self.embed_timestep = nn.Sequential(
+                nn.Linear(self.model_channels, self.latent_dim),
+                nn.SiLU(),
+                nn.Linear(self.latent_dim, self.latent_dim),
+            )
 
         if self.cond_mode != 'no_cond':
             if 'text' in self.cond_mode:
@@ -106,14 +117,17 @@ class MRM(nn.Module):
                 self.embed_text = nn.Linear(self.smpl_dim, self.latent_dim)
                 print('EMBED SMPL')
 
-        # self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
-                                            # self.nfeats)
-
-        self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
+        if not use_latent:
+            self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
                                             self.nfeats)
-        
-        self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
-                                            self.nfeats)
+            self.dec_A = identity
+            self.dec_B = identity
+        else:
+            self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
+                                                self.nfeats)
+            
+            self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
+                                                self.nfeats)
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
     def parameters_wo_clip(self):
@@ -196,17 +210,21 @@ class MRM(nn.Module):
         timesteps: [batch_size] (int)
         """
         # bs, nframes, njoints  = x.shape
-        emb = self.embed_timestep(timestep_embedding(timesteps, self.model_channels)).unsqueeze(0)
+        if not self.debug:
+            emb = self.embed_timestep(timestep_embedding(timesteps, self.model_channels)).unsqueeze(0)
 
-        # x = x.type(self.dtype)
+        # breakpoint()
+        x = x.type(self.dtype)
+        if not self.use_latent:
+            x = self.input_process(x)
+        # else:
         x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
-        # x = self.input_process(x)
 
         if self.arch == 'trans_enc':
             # adding the timestep embed
             xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
-            output = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+            x = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
 
         elif self.arch == 'trans_dec':
             if self.emb_trans_dec:
@@ -215,11 +233,14 @@ class MRM(nn.Module):
                 xseq = x
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
             if self.emb_trans_dec:
-                output = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
+                x = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
             else:
-                output = self.seqTransDecoder(tgt=xseq, memory=emb)
+                x = self.seqTransDecoder(tgt=xseq, memory=emb)
 
-        # output = self.output_process(output)  # [bs, njoints, nfeats, nframes]
+        
+        if not self.use_latent:
+            output = self.output_process(x)  # [bs, njoints, nfeats, nframes]
+        # else:
         output = output.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
 
         return output

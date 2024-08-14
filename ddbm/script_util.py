@@ -77,7 +77,7 @@ def model_and_diffusion_defaults():
         pred_mode='ve',
         weight_schedule="karras",
         layers=8,
-        latent_dim=512,
+        # latent_dim=512,
         cond_mask_prob=1.0,
         emb_trans_dec=False,
         arch='trans_enc',
@@ -158,8 +158,8 @@ def create_model_and_diffusion_mrm(
 
     diffusion = KarrasDenoiser(
         # sigma_data=sigma_data,
-        # sigma_max=sigma_max,
-        # sigma_min=sigma_min,
+        sigma_max=args.sigma_max,
+        sigma_min=args.sigma_min,
         # beta_d=beta_d,
         # beta_min=beta_min,
         # cov_xy=cov_xy,
@@ -186,22 +186,24 @@ def get_model_args_mrm(args):
     njoints = 28
     nfeats = 1
 
-    if args.dataset == 'humanml':
-        data_rep = 'hml_vec'
-        njoints = 263
-        nfeats = 1
-    elif args.dataset == 'kit':
-        data_rep = 'hml_vec'
-        njoints = 251
-        nfeats = 1
+    # if args.dataset == 'humanml':
+    #     data_rep = 'hml_vec'
+    #     njoints = 263
+    #     nfeats = 1
+    # elif args.dataset == 'kit':
+    #     data_rep = 'hml_vec'
+    #     njoints = 251
+    #     nfeats = 1
+    args.use_latent = args.human_data_path is not None
 
     return {'modeltype': '', 'njoints': njoints, 'nfeats': nfeats, 'num_actions': num_actions,
             'translation': True, 'pose_rep': 'rot6d', 'glob': True, 'glob_rot': True,
-            'use_fp16': args.use_fp16, 'latent_dim': args.num_channels,
-            'latent_dim': args.latent_dim, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
+            'use_fp16': args.use_fp16, 'use_latent': args.use_latent,
+            'sigma_max': args.sigma_max, 'sigma_min': args.sigma_min,
+            'latent_dim': args.num_channels, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
             'dropout': 0.1, 'activation': "gelu", 'data_rep': data_rep, 'cond_mode': cond_mode,
             'cond_mask_prob': args.cond_mask_prob, 'action_emb': action_emb, 'arch': args.arch,
-            'emb_trans_dec': args.emb_trans_dec, 'dataset': args.dataset}
+            'emb_trans_dec': args.emb_trans_dec}#, 'dataset': args.dataset}
 
 def create_ema_and_scales_fn(
     target_ema_mode,

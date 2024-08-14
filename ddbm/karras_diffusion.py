@@ -149,7 +149,7 @@ class KarrasDenoiser:
             return c_skip, c_out, c_in
         
 
-    def training_bridge_losses(self, model, x0, sigmas, model_kwargs=None, noise=None, vae=None):
+    def training_bridge_losses(self, model, x0, sigmas, model_kwargs=None, noise=None, vae=None, train_diffusion=True):
         
         # breakpoint()
         assert model_kwargs is not None
@@ -186,37 +186,45 @@ class KarrasDenoiser:
             return samples
         
         # breakpoint()
+        L_A = L_B
         x_t = bridge_sample(L_B, L_A, sigmas)
-
-
-        xT_dec = model.module.dec_A(L_A)
-        x0_dec = model.module.dec_B(L_B)
-
-        recon_x0_loss = mean_flat((x0_dec - x0) ** 2)
-        recon_xT_loss = mean_flat((xT_dec - xT) ** 2)
-        similarities_pos = th.exp(F.cosine_similarity(L_A, L_B, dim=-1))
-        similarities_A_neg = th.exp(F.cosine_similarity(L_A, th.concat([L_A[1:],L_A[:1]]), dim=-1))
-        similarities_B_neg = th.exp(F.cosine_similarity(L_B, th.concat([L_B[1:],L_B[:1]]), dim=-1))
-        contrastive_loss = similarities_pos / (similarities_pos + similarities_A_neg + similarities_B_neg)
-
-        terms["recon_x0_loss"] = recon_x0_loss
-        terms["recon_xT_loss"] = recon_xT_loss
-        terms["contrastive_loss"] = contrastive_loss
-
-        model_output, denoised = self.denoise(model, x_t, sigmas,  **model_kwargs)
-        x0_denoised = model.module.dec_B(denoised)
-
-        weights = self.get_weightings(sigmas.type(x0.dtype))
+        # x_t = L_B
         
-        weights =  append_dims((weights), dims)
-        terms["xs_mse"] = mean_flat((x0_denoised - x0) ** 2)
-        terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2)
-        if "vb" in terms:
-            terms["loss"] = terms["mse"] + terms["vb"]
-        else:
-            terms["loss"] = terms["mse"]
 
-        terms["loss"] += recon_x0_loss + recon_xT_loss + mean_flat(-th.log(contrastive_loss))
+
+
+        terms["loss"] = 0
+        if train_diffusion:
+            model_output, denoised = self.denoise(model, x_t, sigmas,  **model_kwargs)
+            x0_denoised = model.module.dec_B(denoised)
+
+            weights = self.get_weightings(sigmas.type(x0.dtype))
+            
+            weights =  append_dims((weights), dims)
+            # terms["xs_mse"] = mean_flat((x0_denoised - x0) ** 2)
+            # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2)
+            terms["mse/xs_loss"] = mean_flat((denoised - L_B) ** 2)
+            terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
+            terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
+            if "vb" in terms:
+                terms["loss"] += terms["vb"]
+        else:
+            xT_dec = model.module.dec_A(L_A)
+            x0_dec = model.module.dec_B(L_B)
+
+            recon_x0_loss = mean_flat((x0_dec - x0) ** 2)
+            recon_xT_loss = mean_flat((xT_dec - xT) ** 2)
+            similarities_pos = th.exp(F.cosine_similarity(L_A, L_B, dim=-1))
+            similarities_A_neg = th.exp(F.cosine_similarity(L_A, th.concat([L_A[1:],L_A[:1]]), dim=-1))
+            similarities_B_neg = th.exp(F.cosine_similarity(L_B, th.concat([L_B[1:],L_B[:1]]), dim=-1))
+            contrastive_loss = similarities_pos / (similarities_pos + similarities_A_neg + similarities_B_neg)
+
+            terms["recon/x0_loss"] = recon_x0_loss
+            terms["recon/xT_loss"] = recon_xT_loss
+            terms["contrastive/metric"] = mean_flat(contrastive_loss)
+            terms["contrastive/loss"] = mean_flat(-th.log(contrastive_loss))
+
+            terms["loss"] += recon_x0_loss + recon_xT_loss + mean_flat(-th.log(contrastive_loss)) #- mean_flat(similarities_pos)
         # if 
         return terms
     
@@ -231,6 +239,7 @@ class KarrasDenoiser:
         # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
         model_output = model(c_in * x_t, sigmas, **model_kwargs)
         denoised = c_out * model_output + c_skip * x_t
+        # breakpoint()
         return model_output, denoised
 
 def karras_sample(
@@ -239,7 +248,7 @@ def karras_sample(
     x_T,
     x_0,
     steps,
-    clip_denoised=True,
+    clip_denoised=False,
     progress=False,
     callback=None,
     model_kwargs=None,
@@ -266,14 +275,16 @@ def karras_sample(
     def denoiser(x_t, sigma, x_T=None):
         _, denoised = diffusion.denoise(model, x_t, sigma, **model_kwargs)
         
-        if clip_denoised:
-            denoised = denoised.clamp(-1, 1)
+        # if clip_denoised:
+        #     denoised = denoised.clamp(-1, 1)
                 
         return denoised
     
-    x_0, path, nfe = sample_fn(
+    L_A = model.enc_A(x_T)
+    L_B_gt = model.enc_B(x_0)
+    L_B, path, nfe = sample_fn(
         denoiser,
-        x_T,
+        L_B_gt,
         sigmas,
         progress=progress,
         callback=callback,
@@ -281,8 +292,11 @@ def karras_sample(
         **sampler_args,
     )
     print('nfe:', nfe)
+    x_0 = model.dec_B(L_B)
+    breakpoint()
 
-    return x_0.clamp(-1, 1), [x.clamp(-1, 1) for x in path], nfe
+    return x_0, path, nfe
+    # return x_0.clamp(-1, 1), [x.clamp(-1, 1) for x in path], nfe
 
 
 def get_sigmas_karras(n, sigma_min, sigma_max, rho=7.0, device="cpu"):
@@ -312,6 +326,7 @@ def to_d(x, sigma, denoised, x_T, sigma_max,   w=1, stochastic=False):
     grad_pxTlxt = (x_T - x) / (append_dims(th.ones_like(sigma)*sigma_max**2, x.ndim) - append_dims(sigma**2, x.ndim))
     gt2 = 2*sigma
     d = - (0.5 if not stochastic else 1) * gt2 * (grad_pxtlx0 - w * grad_pxTlxt * (0 if stochastic else 1))
+    breakpoint()
     if stochastic:
         return d, gt2
     else:
@@ -390,7 +405,7 @@ def sample_heun(
             sigma_hat = (sigmas[i+1] - sigmas[i]) * churn_step_ratio + sigmas[i]
             
             denoised = denoiser(x, sigmas[i] * s_in, x_T)
-            if pred_mode == 've':
+            if pred_mode.startswith('ve'):
                 d_1, gt2 = to_d(x, sigmas[i] , denoised, x_T, sigma_max,  w=guidance, stochastic=True)
             elif pred_mode.startswith('vp'):
                 d_1, gt2 = get_d_vp(x, denoised, x_T, std(sigmas[i]),logsnr(sigmas[i]), logsnr_T, logs(sigmas[i] ), logs_T, s_deriv(sigmas[i] ), vp_snr_sqrt_reciprocal(sigmas[i] ), vp_snr_sqrt_reciprocal_deriv(sigmas[i] ), guidance, stochastic=True)
@@ -406,7 +421,7 @@ def sample_heun(
         
         # heun step
         denoised = denoiser(x, sigma_hat * s_in, x_T)
-        if pred_mode == 've':
+        if pred_mode.startswith('ve'):
             # d =  (x - denoised ) / append_dims(sigma_hat, x.ndim)
             d = to_d(x, sigma_hat, denoised, x_T, sigma_max, w=guidance)
         elif pred_mode.startswith('vp'):
@@ -432,7 +447,7 @@ def sample_heun(
             # Heun's method
             x_2 = x + d * dt
             denoised_2 = denoiser(x_2, sigmas[i + 1] * s_in, x_T)
-            if pred_mode == 've':
+            if pred_mode.startswith('ve'):
                 # d_2 =  (x_2 - denoised_2) / append_dims(sigmas[i + 1], x.ndim)
                 d_2 = to_d(x_2,  sigmas[i + 1], denoised_2, x_T, sigma_max, w=guidance)
             elif pred_mode.startswith('vp'):

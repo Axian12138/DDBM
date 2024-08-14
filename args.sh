@@ -6,12 +6,12 @@ PRED=$2
 NGPU=1
 
 
-SIGMA_MAX=80.0
+SIGMA_MAX=1
 SIGMA_MIN=0.002
 SIGMA_DATA=0.5
 COV_XY=0
 
-
+ARCH='trans_enc' # 'debug'
 # NUM_CH=256
 ATTN=32,16,8
 SAMPLER=real-uniform # real-uniform??
@@ -19,8 +19,8 @@ NUM_RES_BLOCKS=2
 USE_16FP=False # True
 ATTN_TYPE=flash
 
-DATA_DIR=YOUR_DATASET_PATH
-DATASET=edges2handbags
+DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
+# HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
 NUM_CH=192
 NUM_RES_BLOCKS=3
 EXP="${DATASET_NAME}_${NUM_CH}d"
