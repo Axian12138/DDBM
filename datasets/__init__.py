@@ -316,4 +316,4 @@ def load_data_motion(
         
         return loader, val_loader, test_loader
     else:
-        return loader, val_loader
+        return loader, val_loader, trainset.cov_xy

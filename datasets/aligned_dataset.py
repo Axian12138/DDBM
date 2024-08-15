@@ -327,6 +327,17 @@ class MotionDataset(torch.utils.data.Dataset):
         self.jt_B = torch.cat(self.jt_B, dim=0)
         self.root_A = torch.cat(self.root_A, dim=0)
         self.root_B = torch.cat(self.root_B, dim=0)
+        self.jt_root_A = torch.concat([self.jt_A, self.root_A], dim=1)
+        self.jt_root_B = torch.concat([self.jt_B, self.root_B], dim=1)
+        # normalize
+        self.mean_A = self.jt_root_A.mean(dim=0, keepdim=True)
+        self.mean_B = self.jt_root_B.mean(dim=0, keepdim=True)
+        self.std_A = self.jt_root_A.std(dim=0, keepdim=True)
+        self.std_B = self.jt_root_B.std(dim=0, keepdim=True)
+        self.jt_root_A = (self.jt_root_A - self.mean_A) / self.std_A
+        self.jt_root_B = (self.jt_root_B - self.mean_B) / self.std_B
+        self.cov_xy = (self.jt_root_A * self.jt_root_B).mean(dim=0, keepdim=True)
+        del self.jt_A, self.jt_B, self.root_A, self.root_B
         self.motion_length = torch.tensor(motion_length, dtype=torch.long)
         self.length = len(motion_length)
         self.max_length = self.motion_length.max()
@@ -346,19 +357,22 @@ class MotionDataset(torch.utils.data.Dataset):
             B (tensor) - - its corresponding target motion
         """
         motion_length = self.motion_length[index]
-        jt_A = self.jt_A[self.start_id[index]:self.start_id[index]+motion_length]
-        jt_B = self.jt_B[self.start_id[index]:self.start_id[index]+motion_length]
-        root_A = self.root_A[self.start_id[index]:self.start_id[index]+motion_length]
-        root_B = self.root_B[self.start_id[index]:self.start_id[index]+motion_length]
-        jt_root_A = torch.concat([jt_A, root_A], dim=1)
-        jt_root_B = torch.concat([jt_B, root_B], dim=1)
+        # jt_A = self.jt_A[self.start_id[index]:self.start_id[index]+motion_length]
+        # jt_B = self.jt_B[self.start_id[index]:self.start_id[index]+motion_length]
+        # root_A = self.root_A[self.start_id[index]:self.start_id[index]+motion_length]
+        # root_B = self.root_B[self.start_id[index]:self.start_id[index]+motion_length]
+        # jt_root_A = torch.concat([jt_A, root_A], dim=1)
+        # jt_root_B = torch.concat([jt_B, root_B], dim=1)
+        jt_root_A = self.jt_root_A[self.start_id[index]:self.start_id[index]+motion_length]
+        jt_root_B = self.jt_root_B[self.start_id[index]:self.start_id[index]+motion_length]
         if self.load_pose:
             # random choose a pose 
-            A = jt_root_A[torch.randint(jt_root_A.shape[0], (1,))]
-            B = jt_root_B[torch.randint(jt_root_B.shape[0], (1,))]
+            pose_id = torch.randint(jt_root_A.shape[0], (1,))
+            A = jt_root_A[pose_id]
+            B = jt_root_B[pose_id]
         else:
-            zero_pad_A = torch.zeros((self.max_length-motion_length, jt_A.shape[-1]+3+6)).to(jt_A)
-            zero_pad_B = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_A)
+            zero_pad_A = torch.zeros((self.max_length-motion_length, jt_root_A.shape[-1]+3+6)).to(jt_root_A)
+            zero_pad_B = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_root_A)
             A = torch.concat([jt_root_A, zero_pad_A], dim=0)
             B = torch.concat([jt_root_B, zero_pad_B], dim=0)
             A = A[:1000]

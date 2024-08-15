@@ -25,12 +25,12 @@ def vp_logs(t, beta_d, beta_min):
 class KarrasDenoiser:
     def __init__(
         self,
-        sigma_data: float = 0.5,
+        sigma_data: float = 1,
         sigma_max=80,
         sigma_min=0.002,
         beta_d=2,
         beta_min=0.1,
-        cov_xy=0., # 0 for uncorrelated, sigma_data**2 / 2 for  C_skip=1/2 at sigma_max
+        cov_xy=0.5, # 0 for uncorrelated, sigma_data**2 / 2 for  C_skip=1/2 at sigma_max
         rho=7.0,
         image_size=64,
         weight_schedule="karras",
@@ -82,6 +82,7 @@ class KarrasDenoiser:
             weightings = snrs + 1.0 / self.sigma_data**2
         elif self.weight_schedule.startswith("bridge_karras"):
             if self.pred_mode == 've':
+                sigma = append_dims(sigma, self.cov_xy.ndim)
                 A = sigma**4 / self.sigma_max**4 * self.sigma_data_end**2 + (1 - sigma**2 / self.sigma_max**2)**2 * self.sigma_data**2 + 2*sigma**2 / self.sigma_max**2 * (1 - sigma**2 / self.sigma_max**2) * self.cov_xy + self.c**2 * sigma**2 * (1 - sigma**2 / self.sigma_max**2)
                 weightings = A / ((sigma/self.sigma_max)**4 * (self.sigma_data_end**2 * self.sigma_data**2 - self.cov_xy**2) + self.sigma_data**2 * self.c**2 * sigma**2 * (1 - sigma**2/self.sigma_max**2) )
             
@@ -95,6 +96,10 @@ class KarrasDenoiser:
                 a_t = (logsnr_T - logsnr_t +logs_t -logs_T).exp()
                 b_t = -th.expm1(logsnr_T - logsnr_t) * logs_t.exp()
                 c_t = -th.expm1(logsnr_T - logsnr_t) * (2*logs_t - logsnr_t).exp()
+
+                a_t = append_dims(a_t, self.cov_xy.ndim)
+                b_t = append_dims(b_t, self.cov_xy.ndim)
+                c_t = append_dims(c_t, self.cov_xy.ndim)
 
                 A = a_t**2 * self.sigma_data_end**2 + b_t**2 * self.sigma_data**2 + 2*a_t * b_t * self.cov_xy + self.c**2 * c_t
                 weightings = A / (a_t**2 * (self.sigma_data_end**2 * self.sigma_data**2 - self.cov_xy**2) + self.sigma_data**2 * self.c**2 * c_t )
@@ -114,6 +119,7 @@ class KarrasDenoiser:
 
     def get_bridge_scalings(self, sigma):
         if self.pred_mode == 've':
+            sigma = append_dims(sigma, self.cov_xy.ndim)
             A = sigma**4 / self.sigma_max**4 * self.sigma_data_end**2 + (1 - sigma**2 / self.sigma_max**2)**2 * self.sigma_data**2 + 2*sigma**2 / self.sigma_max**2 * (1 - sigma**2 / self.sigma_max**2) * self.cov_xy + self.c **2 * sigma**2 * (1 - sigma**2 / self.sigma_max**2)
             c_in = 1 / (A) ** 0.5
             c_skip = ((1 - sigma**2 / self.sigma_max**2) * self.sigma_data**2 + sigma**2 / self.sigma_max**2 * self.cov_xy)/ A
@@ -132,6 +138,10 @@ class KarrasDenoiser:
             b_t = -th.expm1(logsnr_T - logsnr_t) * logs_t.exp()
             c_t = -th.expm1(logsnr_T - logsnr_t) * (2*logs_t - logsnr_t).exp()
 
+            # breakpoint()
+            a_t = append_dims(a_t, self.cov_xy.ndim)
+            b_t = append_dims(b_t, self.cov_xy.ndim)
+            c_t = append_dims(c_t, self.cov_xy.ndim)
             A = a_t**2 * self.sigma_data_end**2 + b_t**2 * self.sigma_data**2 + 2*a_t * b_t * self.cov_xy + self.c**2 * c_t
             
             
@@ -188,7 +198,8 @@ class KarrasDenoiser:
         # breakpoint()
         L_A = L_B
         x_t = bridge_sample(L_B, L_A, sigmas)
-        # x_t = L_B
+        # breakpoint()
+        x_t = L_B
         
 
 

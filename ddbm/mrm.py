@@ -17,8 +17,8 @@ class MRM(nn.Module):
                  arch='trans_enc', emb_trans_dec=False, clip_version=None, **kargs):
         super().__init__()
 
-        self.legacy = legacy
-        self.modeltype = modeltype
+        # self.legacy = legacy
+        # self.modeltype = modeltype
         self.njoints = njoints
         self.nfeats = nfeats
         # self.num_actions = num_actions

@@ -29,6 +29,12 @@ import os
 from datasets.augment import AugmentPipe
 def main(args):
 
+    if args.human_data_path is not None:
+        args.exp += '_human'
+    if args.load_pose:
+        args.exp += '_load_pose'
+
+
     workdir = get_workdir(args.exp)
     Path(workdir).mkdir(parents=True, exist_ok=True)
     
@@ -58,7 +64,7 @@ def main(args):
                     logger.log('Resuming from checkpoint: ', max_ckpt)
 
 
-    data, test_data = load_data_motion(
+    data, test_data, cov_xy = load_data_motion(
         data_path=args.data_path,
         # data_path_B=args.data_path_B,
         batch_size=args.batch_size,
@@ -68,7 +74,7 @@ def main(args):
     )
 
     model, diffusion = create_model_and_diffusion_mrm(
-        args
+        args, cov_xy.to(dist_util.dev())
     )
     model.to(dist_util.dev())
 

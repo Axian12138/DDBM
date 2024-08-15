@@ -428,6 +428,6 @@ def log_loss_dict(diffusion, ts, losses):
         logger.logkv_mean(key, values.mean().item())
         # Log the quantiles (four quartiles, in particular).
         for sub_t, sub_loss in zip(ts.cpu().numpy(), values.detach().cpu().numpy()):
-            quartile = int(4 * sub_t / diffusion.num_timesteps)
+            quartile = int(4 * sub_t / diffusion.sigma_max)
             logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
     # breakpoint()

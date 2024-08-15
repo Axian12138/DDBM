@@ -23,7 +23,7 @@ DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
 # HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
 NUM_CH=192
 NUM_RES_BLOCKS=3
-EXP="${DATASET_NAME}_${NUM_CH}d"
+EXP="${DATASET_NAME}_${ARCH}_${NUM_CH}d"
 SAVE_ITER=1000
     
 if  [[ $PRED == "ve" ]]; then
