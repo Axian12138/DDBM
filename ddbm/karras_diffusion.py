@@ -213,7 +213,7 @@ class KarrasDenoiser:
             
             weights =  append_dims((weights), dims)
             # terms["xs_mse"] = mean_flat((x0_denoised - x0) ** 2)
-            # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2)
+            # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2) / th.std(L_B, dim=-1, keepdim = True)
             terms["mse/xs_loss"] = mean_flat((denoised - L_B) ** 2)
             terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
             terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
@@ -248,7 +248,8 @@ class KarrasDenoiser:
         ]
                
         # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
-        model_output = model(c_in * x_t, sigmas, **model_kwargs)
+        norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
+        model_output = model(c_in * x_t, norm_sigmas, **model_kwargs)
         denoised = c_out * model_output + c_skip * x_t
         # breakpoint()
         return model_output, denoised

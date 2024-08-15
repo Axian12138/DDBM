@@ -201,7 +201,7 @@ def get_model_args_mrm(args):
             'use_fp16': args.use_fp16, 'use_latent': args.use_latent,
             'sigma_max': args.sigma_max, 'sigma_min': args.sigma_min,
             'latent_dim': args.num_channels, 'ff_size': 1024, 'num_layers': args.layers, 'num_heads': 4,
-            'dropout': 0.1, 'activation': "gelu", 'data_rep': data_rep, 'cond_mode': cond_mode,
+            'dropout': args.dropout, 'activation': "gelu", 'data_rep': data_rep, 'cond_mode': cond_mode,
             'cond_mask_prob': args.cond_mask_prob, 'action_emb': action_emb, 'arch': args.arch,
             'emb_trans_dec': args.emb_trans_dec}#, 'dataset': args.dataset}
 

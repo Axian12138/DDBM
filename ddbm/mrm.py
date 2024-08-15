@@ -26,9 +26,9 @@ class MRM(nn.Module):
         self.data_rep = data_rep
         # self.dataset = dataset
 
-        self.pose_rep = pose_rep
-        self.glob = glob
-        self.glob_rot = glob_rot
+        # self.pose_rep = pose_rep
+        # self.glob = glob
+        # self.glob_rot = glob_rot
         self.translation = translation
 
         self.latent_dim = latent_dim
@@ -217,6 +217,9 @@ class MRM(nn.Module):
         x = x.type(self.dtype)
         if not self.use_latent:
             x = self.input_process(x)
+        # if xT is not None:
+        #     xT = xT.type(self.dtype)
+        #     xT = self.input_process(xT)
         # else:
         x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
 
@@ -317,7 +320,7 @@ def timestep_embedding(timesteps, dim, max_period=10000):
     freqs = torch.exp(
         -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
     ).to(device=timesteps.device)
-    args = timesteps[:, None].float() * freqs[None]
+    args = timesteps[:, None].float() * freqs[None] #* (2 * math.pi)
     embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
     if dim % 2:
         embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
@@ -333,6 +336,7 @@ class InputProcess(nn.Module):
         self.poseEmbedding = nn.Linear(self.input_feats, self.latent_dim)
         if self.data_rep == 'rot_vel':
             self.velEmbedding = nn.Linear(self.input_feats, self.latent_dim)
+            
 
     def forward(self, x):
         # bs, nframes, njoints  = x.shape

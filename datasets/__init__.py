@@ -270,16 +270,17 @@ def load_data_motion(
     seed=42,
     num_workers=2,
     human_data_path = None,
-    load_pose=False
+    load_pose=False,
+    norm=True,
 ):
   # Compute batch size for this worker.
     # root = data_dir
   
 
     from .aligned_dataset import MotionDataset
-    trainset = MotionDataset(data_path, train=True,human_data_path=human_data_path,load_pose=load_pose)
+    trainset = MotionDataset(data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm)
 
-    valset = MotionDataset(data_path, train=True,human_data_path=human_data_path,load_pose=load_pose)
+    valset = MotionDataset(data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm)
     if include_test:
         testset = MotionDataset(dataroot=root, train=False)
 

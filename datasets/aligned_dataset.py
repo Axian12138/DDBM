@@ -241,7 +241,7 @@ class MotionDataset(torch.utils.data.Dataset):
     During test time, you need to prepare a directory '/path/to/data/test'.
     """
 
-    def __init__(self, data_path, train=True, human_data_path = None, load_pose = False):
+    def __init__(self, data_path, train=True, human_data_path = None, load_pose = False, norm = True):
         """Initialize this dataset class.
         Parameters:
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
@@ -278,9 +278,9 @@ class MotionDataset(torch.utils.data.Dataset):
         recycle_data_list = joblib.load(data_path)
         if human_data_path is not None:
             human_data_dict = joblib.load(human_data_path)
-            import pytorch_kinematics as pk
-            chain = pk.build_chain_from_urdf(open("/home/ubuntu/workspace/H1_RL/HST/legged_gym/resources/robots/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
-            human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
+            # import pytorch_kinematics as pk
+            # chain = pk.build_chain_from_urdf(open("/home/ubuntu/workspace/H1_RL/HST/legged_gym/resources/robots/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
+            # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
         for data_pair in recycle_data_list:
             if data_pair is None:
                 continue
@@ -334,9 +334,11 @@ class MotionDataset(torch.utils.data.Dataset):
         self.mean_B = self.jt_root_B.mean(dim=0, keepdim=True)
         self.std_A = self.jt_root_A.std(dim=0, keepdim=True)
         self.std_B = self.jt_root_B.std(dim=0, keepdim=True)
-        self.jt_root_A = (self.jt_root_A - self.mean_A) / self.std_A
-        self.jt_root_B = (self.jt_root_B - self.mean_B) / self.std_B
-        self.cov_xy = (self.jt_root_A * self.jt_root_B).mean(dim=0, keepdim=True)
+        if norm:
+            self.jt_root_A = (self.jt_root_A - self.mean_A) / self.std_A
+            self.jt_root_B = (self.jt_root_B - self.mean_B) / self.std_B
+        
+        self.cov_xy = (self.jt_root_B * self.jt_root_B).mean(dim=0, keepdim=True)
         del self.jt_A, self.jt_B, self.root_A, self.root_B
         self.motion_length = torch.tensor(motion_length, dtype=torch.long)
         self.length = len(motion_length)

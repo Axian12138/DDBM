@@ -35,10 +35,20 @@ def main(args):
         args.exp += '_pose'
     else:
         args.exp += '_motion'
+    if args.normalize:
+        args.exp += '_norm'
 
 
     workdir = get_workdir(args.exp)
     Path(workdir).mkdir(parents=True, exist_ok=True)
+    # copy ./args.sh to workdir/args.sh
+    import shutil
+    shutil.copy('./args.sh', f'{workdir}/args.sh')
+
+    # with open('./args.sh', 'r') as f:
+    #     with open(f'{workdir}/args.sh', 'w') as f2:
+    #         f2.write(f.read())
+        
     
     dist_util.setup_dist()
     logger.configure(dir=workdir)
@@ -73,7 +83,8 @@ def main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         human_data_path=args.human_data_path,
-        load_pose = args.load_pose
+        load_pose = args.load_pose,
+        norm = args.normalize,
     )
 
     model, diffusion = create_model_and_diffusion_mrm(
@@ -159,6 +170,7 @@ def create_argparser():
         data_path=None,
         human_data_path=None,
         load_pose=False,
+        normalize=True,
         # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )

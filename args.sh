@@ -1,15 +1,15 @@
-BS=64
-
+BS=192
+MICRO=192
 
 DATASET_NAME=$1
 PRED=$2
 NGPU=1
 
-
-SIGMA_MAX=1
-SIGMA_MIN=0.002
+NORMALIZE=True
+SIGMA_MAX=0.1
+SIGMA_MIN=0.0001
 SIGMA_DATA=0.5
-COV_XY=0
+# COV_XY=0
 
 # ARCH='trans_enc' # 'debug'
 ARCH='debug'
@@ -52,6 +52,7 @@ else
     echo "Not supported"
     exit 1
 fi
+EXP+="_${SIGMA_MAX}S"
 
 
 # BS=192
