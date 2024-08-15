@@ -32,7 +32,9 @@ def main(args):
     if args.human_data_path is not None:
         args.exp += '_human'
     if args.load_pose:
-        args.exp += '_load_pose'
+        args.exp += '_pose'
+    else:
+        args.exp += '_motion'
 
 
     workdir = get_workdir(args.exp)
@@ -40,6 +42,7 @@ def main(args):
     
     dist_util.setup_dist()
     logger.configure(dir=workdir)
+    # logger.logkv('exp',args.exp)
     if dist.get_rank() == 0:
         name = args.exp if args.resume_checkpoint == "" else args.exp + '_resume'
         wandb.init(project="bridge", 

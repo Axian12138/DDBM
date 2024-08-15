@@ -11,7 +11,8 @@ SIGMA_MIN=0.002
 SIGMA_DATA=0.5
 COV_XY=0
 
-ARCH='trans_enc' # 'debug'
+# ARCH='trans_dec' # 'debug'
+ARCH='debug'
 # NUM_CH=256
 ATTN=32,16,8
 SAMPLER=real-uniform # real-uniform??
