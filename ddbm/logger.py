@@ -371,6 +371,7 @@ class Logger(object):
                 fmt.writekvs(d)
         self.name2val.clear()
         self.name2cnt.clear()
+        self.log(self.dir)
         return out
 
     def log(self, *args, level=INFO):

@@ -199,7 +199,7 @@ class KarrasDenoiser:
         L_A = L_B
         x_t = bridge_sample(L_B, L_A, sigmas)
         # breakpoint()
-        x_t = L_B
+        # x_t = L_B
         
 
 
