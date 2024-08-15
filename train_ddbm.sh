@@ -8,7 +8,7 @@ source ./args.sh $DATASET_NAME $PRED
 
 FREQ_SAVE_ITER=20000
 NGPU=1
-
+CUDA_VISIBLE_DEVICES=1
 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
  --attention_resolutions $ATTN --class_cond False --use_scale_shift_norm True \
   --dropout 0.1 --ema_rate 0.9999 --batch_size $BS \
