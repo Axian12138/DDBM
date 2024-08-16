@@ -216,6 +216,7 @@ class KarrasDenoiser:
             # terms["xs_mse"] = mean_flat((x0_denoised - x0) ** 2)
             # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2) / th.std(L_B, dim=-1, keepdim = True)
             terms["mse/xs_loss"] = mean_flat((denoised - L_B) ** 2)
+            terms["mse/dec_loss"] = mean_flat((x0_denoised - x0) ** 2)
             terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
             terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
             if "vb" in terms:
