@@ -152,7 +152,7 @@ def create_model_and_diffusion(
 
 
 def create_model_and_diffusion_mrm(
-    args, cov_xy,
+    args, cov_xy = None,
 ):
     model = MRM(**get_model_args_mrm(args))
 
@@ -162,7 +162,7 @@ def create_model_and_diffusion_mrm(
         sigma_min=args.sigma_min,
         # beta_d=beta_d,
         # beta_min=beta_min,
-        cov_xy=cov_xy,
+        cov_xy=args.cov_xy if cov_xy is None else cov_xy,
         # image_size=image_size,
         weight_schedule=args.weight_schedule,
         pred_mode=args.pred_mode
