@@ -1,18 +1,18 @@
-BS=192
-MICRO=192
+BS=64
+MICRO=16
 
 DATASET_NAME=$1
 PRED=$2
 NGPU=1
 
-NORMALIZE=True
-SIGMA_MAX=0.1
-SIGMA_MIN=0.0001
+NORMALIZE=False
+SIGMA_MAX=80
+SIGMA_MIN=0.002
 SIGMA_DATA=0.5
 # COV_XY=0
 
 # ARCH='trans_enc' # 'debug'
-ARCH='debug'
+ARCH='trans_enc'
 # NUM_CH=256
 ATTN=32,16,8
 SAMPLER=real-uniform # real-uniform??
@@ -20,10 +20,10 @@ NUM_RES_BLOCKS=2
 USE_16FP=False # True
 ATTN_TYPE=flash
 
-# DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
-DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
-# HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
-NUM_CH=192
+DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
+# DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
+HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
+NUM_CH=512
 NUM_RES_BLOCKS=3
 EXP="${DATASET_NAME}_${ARCH}_${NUM_CH}d"
 SAVE_ITER=1000

@@ -21,4 +21,4 @@ mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
       --num_workers=$NGPU  --sigma_data $SIGMA_DATA --sigma_max=$SIGMA_MAX --sigma_min=$SIGMA_MIN \
       --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER \
       ${CKPT:+ --resume_checkpoint="${CKPT}"}  ${DEBUG:+ --debug="${DEBUG}"} \
-      --data_path $DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} --load_pose=True --arch=$ARCH --normalize=$NORMALIZE
+      --data_path $DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} --load_pose=False --arch=$ARCH --normalize=$NORMALIZE

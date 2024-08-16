@@ -30,13 +30,17 @@ from datasets.augment import AugmentPipe
 def main(args):
 
     if args.human_data_path is not None:
-        args.exp += '_human'
+        args.exp += '_latent'
+    else:
+        args.exp += '_raw'
     if args.load_pose:
         args.exp += '_pose'
     else:
         args.exp += '_motion'
     if args.normalize:
         args.exp += '_norm'
+    else:
+        args.exp += '_no_norm'
 
 
     workdir = get_workdir(args.exp)

@@ -242,9 +242,9 @@ class MRM(nn.Module):
 
         
         if not self.use_latent:
-            output = self.output_process(x)  # [bs, njoints, nfeats, nframes]
+            x = self.output_process(x)  # [bs, njoints, nfeats, nframes]
         # else:
-        output = output.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+        output = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
 
         return output
 

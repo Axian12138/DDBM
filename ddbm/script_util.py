@@ -157,7 +157,7 @@ def create_model_and_diffusion_mrm(
     model = MRM(**get_model_args_mrm(args))
 
     diffusion = KarrasDenoiser(
-        # sigma_data=sigma_data,
+        sigma_data=args.sigma_data,
         sigma_max=args.sigma_max,
         sigma_min=args.sigma_min,
         # beta_d=beta_d,

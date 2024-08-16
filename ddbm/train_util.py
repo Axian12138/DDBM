@@ -281,7 +281,7 @@ class TrainLoop:
             last_batch = (i + self.microbatch) >= batch.shape[0]
             t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
 
-            train_diffusion = self.step > -10000
+            train_diffusion = self.step > 10000
             compute_losses = functools.partial(
                     self.diffusion.training_bridge_losses,
                     self.ddp_model,

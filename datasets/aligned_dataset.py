@@ -338,7 +338,8 @@ class MotionDataset(torch.utils.data.Dataset):
             self.jt_root_A = (self.jt_root_A - self.mean_A) / self.std_A
             self.jt_root_B = (self.jt_root_B - self.mean_B) / self.std_B
         
-        self.cov_xy = (self.jt_root_B * self.jt_root_B).mean(dim=0, keepdim=True)
+        self.cov_xy = 0*(self.jt_root_B * self.jt_root_B).mean() + 0.5 #dim=0, keepdim=True
+        # breakpoint()
         del self.jt_A, self.jt_B, self.root_A, self.root_B
         self.motion_length = torch.tensor(motion_length, dtype=torch.long)
         self.length = len(motion_length)
@@ -373,8 +374,8 @@ class MotionDataset(torch.utils.data.Dataset):
             A = jt_root_A[pose_id]
             B = jt_root_B[pose_id]
         else:
-            zero_pad_A = torch.zeros((self.max_length-motion_length, jt_root_A.shape[-1]+3+6)).to(jt_root_A)
-            zero_pad_B = torch.zeros((self.max_length-motion_length, 19+3+6)).to(jt_root_A)
+            zero_pad_A = torch.zeros((self.max_length-motion_length, jt_root_A.shape[-1])).to(jt_root_A)
+            zero_pad_B = torch.zeros((self.max_length-motion_length, jt_root_B.shape[-1])).to(jt_root_A)
             A = torch.concat([jt_root_A, zero_pad_A], dim=0)
             B = torch.concat([jt_root_B, zero_pad_B], dim=0)
             A = A[:1000]

@@ -25,7 +25,7 @@ def vp_logs(t, beta_d, beta_min):
 class KarrasDenoiser:
     def __init__(
         self,
-        sigma_data: float = 1,
+        sigma_data: float = 0.5,
         sigma_max=80,
         sigma_min=0.002,
         beta_d=2,
@@ -82,7 +82,7 @@ class KarrasDenoiser:
             weightings = snrs + 1.0 / self.sigma_data**2
         elif self.weight_schedule.startswith("bridge_karras"):
             if self.pred_mode == 've':
-                sigma = append_dims(sigma, self.cov_xy.ndim)
+                # sigma = append_dims(sigma, self.cov_xy.ndim)
                 A = sigma**4 / self.sigma_max**4 * self.sigma_data_end**2 + (1 - sigma**2 / self.sigma_max**2)**2 * self.sigma_data**2 + 2*sigma**2 / self.sigma_max**2 * (1 - sigma**2 / self.sigma_max**2) * self.cov_xy + self.c**2 * sigma**2 * (1 - sigma**2 / self.sigma_max**2)
                 weightings = A / ((sigma/self.sigma_max)**4 * (self.sigma_data_end**2 * self.sigma_data**2 - self.cov_xy**2) + self.sigma_data**2 * self.c**2 * sigma**2 * (1 - sigma**2/self.sigma_max**2) )
             
@@ -119,11 +119,12 @@ class KarrasDenoiser:
 
     def get_bridge_scalings(self, sigma):
         if self.pred_mode == 've':
-            sigma = append_dims(sigma, self.cov_xy.ndim)
+            # sigma = append_dims(sigma, self.cov_xy.ndim)
             A = sigma**4 / self.sigma_max**4 * self.sigma_data_end**2 + (1 - sigma**2 / self.sigma_max**2)**2 * self.sigma_data**2 + 2*sigma**2 / self.sigma_max**2 * (1 - sigma**2 / self.sigma_max**2) * self.cov_xy + self.c **2 * sigma**2 * (1 - sigma**2 / self.sigma_max**2)
             c_in = 1 / (A) ** 0.5
             c_skip = ((1 - sigma**2 / self.sigma_max**2) * self.sigma_data**2 + sigma**2 / self.sigma_max**2 * self.cov_xy)/ A
             c_out =((sigma/self.sigma_max)**4 * (self.sigma_data_end**2 * self.sigma_data**2 - self.cov_xy**2) + self.sigma_data**2 *  self.c **2 * sigma**2 * (1 - sigma**2/self.sigma_max**2) )**0.5 * c_in
+            # breakpoint()
             return c_skip, c_out, c_in
         
     
@@ -196,7 +197,7 @@ class KarrasDenoiser:
             return samples
         
         # breakpoint()
-        L_A = L_B
+        # L_A = L_B
         x_t = bridge_sample(L_B, L_A, sigmas)
         # breakpoint()
         # x_t = L_B
@@ -219,23 +220,24 @@ class KarrasDenoiser:
             terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
             if "vb" in terms:
                 terms["loss"] += terms["vb"]
-        else:
-            xT_dec = model.module.dec_A(L_A)
-            x0_dec = model.module.dec_B(L_B)
+        # else:
+        # breakpoint()
+        xT_dec = model.module.dec_A(L_A)
+        x0_dec = model.module.dec_B(L_B)
 
-            recon_x0_loss = mean_flat((x0_dec - x0) ** 2)
-            recon_xT_loss = mean_flat((xT_dec - xT) ** 2)
-            similarities_pos = th.exp(F.cosine_similarity(L_A, L_B, dim=-1))
-            similarities_A_neg = th.exp(F.cosine_similarity(L_A, th.concat([L_A[1:],L_A[:1]]), dim=-1))
-            similarities_B_neg = th.exp(F.cosine_similarity(L_B, th.concat([L_B[1:],L_B[:1]]), dim=-1))
-            contrastive_loss = similarities_pos / (similarities_pos + similarities_A_neg + similarities_B_neg)
+        recon_x0_loss = mean_flat((x0_dec - x0) ** 2)
+        recon_xT_loss = mean_flat((xT_dec - xT) ** 2)
+        similarities_pos = th.exp(F.cosine_similarity(L_A, L_B, dim=-1))
+        similarities_A_neg = th.exp(F.cosine_similarity(L_A, th.concat([L_A[1:],L_A[:1]]), dim=-1))
+        similarities_B_neg = th.exp(F.cosine_similarity(L_B, th.concat([L_B[1:],L_B[:1]]), dim=-1))
+        contrastive_loss = similarities_pos / (similarities_pos + similarities_A_neg + similarities_B_neg)
 
-            terms["recon/x0_loss"] = recon_x0_loss
-            terms["recon/xT_loss"] = recon_xT_loss
-            terms["contrastive/metric"] = mean_flat(contrastive_loss)
-            terms["contrastive/loss"] = mean_flat(-th.log(contrastive_loss))
+        terms["recon/x0_loss"] = recon_x0_loss
+        terms["recon/xT_loss"] = recon_xT_loss
+        terms["contrastive/metric"] = mean_flat(contrastive_loss)
+        terms["contrastive/loss"] = mean_flat(-th.log(contrastive_loss))
 
-            terms["loss"] += recon_x0_loss + recon_xT_loss + mean_flat(-th.log(contrastive_loss)) #- mean_flat(similarities_pos)
+        terms["loss"] += recon_x0_loss + recon_xT_loss + mean_flat(-th.log(contrastive_loss)) #- mean_flat(similarities_pos)
         # if 
         return terms
     
@@ -243,12 +245,14 @@ class KarrasDenoiser:
 
     def denoise(self, model, x_t, sigmas ,**model_kwargs):
         # breakpoint()
-        c_skip, c_out, c_in = [
+        c_skip, c_out, c_in = [ # BUG!!!!!!!!! check the shape
             append_dims(x, x_t.ndim) for x in self.get_bridge_scalings(sigmas)
         ]
                
+        # breakpoint()
         # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
-        norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
+        # norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
+        norm_sigmas = sigmas
         model_output = model(c_in * x_t, norm_sigmas, **model_kwargs)
         denoised = c_out * model_output + c_skip * x_t
         # breakpoint()
