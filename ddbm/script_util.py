@@ -4,6 +4,7 @@ from .karras_diffusion import KarrasDenoiser
 # from .unet import UNetModel
 # from .edm_unet import SongUNet
 from .mrm import MRM
+from .mrm import ContrastiveModel
 import numpy as np
 
 NUM_CLASSES = 1000
@@ -156,6 +157,11 @@ def create_model_and_diffusion_mrm(
 ):
     model = MRM(**get_model_args_mrm(args))
 
+
+    if args.vae_checkpoint is not None:
+        vae= ContrastiveModel(**get_model_args_mrm(args))
+    else:
+        vae = None
     diffusion = KarrasDenoiser(
         sigma_data=args.sigma_data,
         sigma_max=args.sigma_max,
@@ -165,9 +171,10 @@ def create_model_and_diffusion_mrm(
         cov_xy=args.cov_xy if cov_xy is None else cov_xy,
         # image_size=image_size,
         weight_schedule=args.weight_schedule,
-        pred_mode=args.pred_mode
+        pred_mode=args.pred_mode,
+        # vae=vae,
     )
-    return model, diffusion
+    return model, diffusion, vae
 
 
 def get_model_args_mrm(args):

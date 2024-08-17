@@ -16,7 +16,7 @@ from ddbm.script_util import (
     get_workdir
 )
 from ddbm.train_util import TrainLoop
-
+import torch
 import torch.distributed as dist
 
 from pathlib import Path
@@ -57,15 +57,6 @@ def main(args):
     dist_util.setup_dist()
     logger.configure(dir=workdir)
     # logger.logkv('exp',args.exp)
-    if dist.get_rank() == 0:
-        name = args.exp if args.resume_checkpoint == "" else args.exp + '_resume'
-        wandb.init(project="bridge", 
-                   group=args.exp,
-                   name=name, 
-                    entity="axian",
-                   config=vars(args), 
-                   mode='online' if not args.debug else 'disabled')
-        logger.log("creating model and diffusion...")
     
 
     # data_image_size = args.image_size
@@ -80,27 +71,17 @@ def main(args):
                 if dist.get_rank() == 0:
                     logger.log('Resuming from checkpoint: ', max_ckpt)
 
+    if args.human_data_path is not None:
+        vae_workdir = f'workdir/enc_{args.num_channels}d'
+        vae_ckpts = list(glob(f'{vae_workdir}/*model*[0-9].*'))
+        if len(vae_ckpts) > 0:
+            max_ckpt = max(vae_ckpts, key=lambda x: int(x.split('model_')[-1].split('.')[0]))
+            if os.path.exists(max_ckpt):
+                args.vae_checkpoint = max_ckpt
+                if dist.get_rank() == 0:
+                    logger.log('Resuming from vae_checkpoint: ', max_ckpt)
 
-    data, test_data, cov_xy = load_data_motion(
-        data_path=args.data_path,
-        # data_path_B=args.data_path_B,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        human_data_path=args.human_data_path,
-        load_pose = args.load_pose,
-        norm = args.normalize,
-    )
 
-    model, diffusion = create_model_and_diffusion_mrm(
-        args, cov_xy
-    )
-    model.to(dist_util.dev())
-
-    if dist.get_rank() == 0:
-        wandb.watch(model, log='all')
-    schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
-
-    
     if args.batch_size == -1:
         batch_size = args.global_batch_size // dist.get_world_size()
         if args.global_batch_size % dist.get_world_size() != 0:
@@ -112,6 +93,43 @@ def main(args):
         
     if dist.get_rank() == 0:
         logger.log("creating data loader...")
+
+    data, test_data, cov_xy = load_data_motion(
+        data_path=args.data_path,
+        # data_path_B=args.data_path_B,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        human_data_path=args.human_data_path,
+        load_pose = args.load_pose,
+        norm = args.normalize,
+    )
+
+    logger.log("creating model and diffusion...")
+    model, diffusion, vae = create_model_and_diffusion_mrm(
+        args, cov_xy
+    )
+    model.to(dist_util.dev())
+    if vae is not None:
+        vae.load_state_dict(
+            torch.load(args.vae_checkpoint, map_location=dist_util.dev()),
+            )
+        vae.to(dist_util.dev())
+        vae.eval()
+        diffusion.vae = vae
+    schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
+
+    if dist.get_rank() == 0:
+        name = args.exp if args.resume_checkpoint == "" else args.exp + '_resume'
+        wandb.init(project="bridge", 
+                   group=args.exp,
+                   name=name, 
+                    entity="axian",
+                   config=vars(args), 
+                   mode='online' if not args.debug else 'disabled')
+    # if dist.get_rank() == 0:
+        wandb.watch(model, log='all')
+
+    
 
     
     if args.use_augment:

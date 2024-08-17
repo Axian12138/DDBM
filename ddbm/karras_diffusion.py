@@ -36,6 +36,7 @@ class KarrasDenoiser:
         weight_schedule="karras",
         pred_mode='both',
         loss_norm="lpips",
+        vae=None,
     ):
         self.sigma_data = sigma_data
         
@@ -58,7 +59,7 @@ class KarrasDenoiser:
         #     self.lpips_loss = LPIPS(replace_pooling=True, reduction="none")
         self.rho = rho
         self.num_timesteps = 100#40
-        self.image_size = image_size
+        self.vae = vae
 
 
     def get_snr(self, sigmas):
@@ -170,8 +171,14 @@ class KarrasDenoiser:
 
         dims = x0.ndim
         bs = x0.shape[0]
-        L_A = model.module.enc_A(xT)
-        L_B = model.module.enc_B(x0)
+        if self.vae is not None:
+            # breakpoint()
+            with th.no_grad():
+                L_A = self.vae.enc_A(xT)
+                L_B = self.vae.enc_B(x0)
+        else:
+            L_A = xT
+            L_B = x0
         if noise is None:
             noise = th.randn_like(L_A) 
         def bridge_sample(x0, xT, t):
@@ -203,43 +210,27 @@ class KarrasDenoiser:
         # x_t = L_B
         
 
-
-
         terms["loss"] = 0
-        if train_diffusion:
-            model_output, denoised = self.denoise(model, x_t, sigmas,  **model_kwargs)
-            x0_denoised = model.module.dec_B(denoised)
+        # if train_diffusion:
+        model_output, denoised = self.denoise(model, x_t, sigmas,  **model_kwargs)
+        if self.vae is not None:
+            x0_denoised = self.vae.dec_B(denoised)
+        else:
+            x0_denoised = denoised
 
-            weights = self.get_weightings(sigmas.type(x0.dtype))
-            
-            weights =  append_dims((weights), dims)
-            # terms["xs_mse"] = mean_flat((x0_denoised - x0) ** 2)
-            # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2) / th.std(L_B, dim=-1, keepdim = True)
-            terms["mse/xs_loss"] = mean_flat((denoised - L_B) ** 2)
-            terms["mse/dec_loss"] = mean_flat((x0_denoised - x0) ** 2)
-            terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
-            terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
-            if "vb" in terms:
-                terms["loss"] += terms["vb"]
+        weights = self.get_weightings(sigmas.type(x0.dtype))
+        
+        weights =  append_dims((weights), dims)
+        # terms["xs_mse"] = mean_flat((x0_denoised - x0) ** 2)
+        # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2) / th.std(L_B, dim=-1, keepdim = True)
+        terms["mse/xs_loss"] = mean_flat((denoised - L_B) ** 2)
+        terms["mse/dec_loss"] = mean_flat((x0_denoised - x0) ** 2)
+        terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
+        terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
+        if "vb" in terms:
+            terms["loss"] += terms["vb"]
         # else:
         # breakpoint()
-        xT_dec = model.module.dec_A(L_A)
-        x0_dec = model.module.dec_B(L_B)
-
-        recon_x0_loss = mean_flat((x0_dec - x0) ** 2)
-        recon_xT_loss = mean_flat((xT_dec - xT) ** 2)
-        similarities_pos = th.exp(F.cosine_similarity(L_A, L_B, dim=-1))
-        similarities_A_neg = th.exp(F.cosine_similarity(L_A, th.concat([L_A[1:],L_A[:1]]), dim=-1))
-        similarities_B_neg = th.exp(F.cosine_similarity(L_B, th.concat([L_B[1:],L_B[:1]]), dim=-1))
-        contrastive_loss = similarities_pos / (similarities_pos + similarities_A_neg + similarities_B_neg)
-
-        terms["recon/x0_loss"] = recon_x0_loss
-        terms["recon/xT_loss"] = recon_xT_loss
-        terms["contrastive/metric"] = mean_flat(contrastive_loss)
-        terms["contrastive/loss"] = mean_flat(-th.log(contrastive_loss))
-
-        terms["loss"] += recon_x0_loss + recon_xT_loss + mean_flat(-th.log(contrastive_loss)) #- mean_flat(similarities_pos)
-        # if 
         return terms
     
 

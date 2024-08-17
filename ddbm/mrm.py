@@ -54,12 +54,12 @@ class MRM(nn.Module):
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
         if not use_latent:
             self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
-            self.enc_A = identity
-            self.enc_B = identity
-        else:
+        #     self.enc_A = identity
+        #     self.enc_B = identity
+        # else:
 
-            self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
-            self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+        #     self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
+        #     self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
 
 
         self.emb_trans_dec = emb_trans_dec
@@ -120,14 +120,14 @@ class MRM(nn.Module):
         if not use_latent:
             self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
                                             self.nfeats)
-            self.dec_A = identity
-            self.dec_B = identity
-        else:
-            self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
-                                                self.nfeats)
+        #     self.dec_A = identity
+        #     self.dec_B = identity
+        # else:
+        #     self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
+        #                                         self.nfeats)
             
-            self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
-                                                self.nfeats)
+        #     self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
+                                                # self.nfeats)
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
     def parameters_wo_clip(self):
