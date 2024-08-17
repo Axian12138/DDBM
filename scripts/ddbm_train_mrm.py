@@ -92,7 +92,7 @@ def main(args):
     )
 
     model, diffusion = create_model_and_diffusion_mrm(
-        args, cov_xy.to(dist_util.dev())
+        args, cov_xy
     )
     model.to(dist_util.dev())
 

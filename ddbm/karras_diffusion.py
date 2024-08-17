@@ -30,7 +30,7 @@ class KarrasDenoiser:
         sigma_min=0.002,
         beta_d=2,
         beta_min=0.1,
-        cov_xy=0.5, # 0 for uncorrelated, sigma_data**2 / 2 for  C_skip=1/2 at sigma_max
+        cov_xy=0., # 0 for uncorrelated, sigma_data**2 / 2 for  C_skip=1/2 at sigma_max
         rho=7.0,
         image_size=64,
         weight_schedule="karras",
@@ -252,8 +252,8 @@ class KarrasDenoiser:
                
         # breakpoint()
         # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
-        # norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
-        norm_sigmas = sigmas
+        norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
+        # norm_sigmas = sigmas
         model_output = model(c_in * x_t, norm_sigmas, **model_kwargs)
         denoised = c_out * model_output + c_skip * x_t
         # breakpoint()

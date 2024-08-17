@@ -1,24 +1,24 @@
 # training
-BS=64
-MICRO=16
-CUDA_VISIBLE_DEVICES=1
+BS=5120
+MICRO=5120
 NGPU=1
 SAVE_ITER=1000
 
 
 # diff
 PRED=$2
-SIGMA_MAX=80
+SIGMA_MAX=10
 SIGMA_MIN=0.002
 SIGMA_DATA=0.5
-COV_XY=0.5
+COV_XY=0.
 SAMPLER=real-uniform # real-uniform??
 
 # data
 NORMALIZE=False
-DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
-# DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
-HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
+# DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
+DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
+# HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
+HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_translation_13370_amass_isaac_train_all.pkl'
 ONLY_POSE=True
 
 # network
@@ -28,7 +28,7 @@ ATTN=32,16,8
 USE_16FP=False # True
 ATTN_TYPE=flash
 
-NUM_CH=512
+NUM_CH=192
 # NUM_RES_BLOCKS=2
 NUM_RES_BLOCKS=3
 
