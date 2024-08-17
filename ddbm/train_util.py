@@ -8,6 +8,7 @@ import blobfile as bf
 import torch as th
 import torch.distributed as dist
 from torch.nn.parallel.distributed import DistributedDataParallel as DDP
+import torch.nn.functional as F
 from torch.optim import RAdam
 
 from . import dist_util, logger
@@ -26,6 +27,7 @@ from ddbm.script_util import NUM_CLASSES
 
 from ddbm.karras_diffusion import karras_sample
 
+from .nn import mean_flat, append_dims, append_zero
 import glob 
 # For ImageNet experiments, this was a good default value.
 # We found that the lg_loss_scale quickly climbed to
@@ -279,17 +281,28 @@ class TrainLoop:
                 for k, v in cond.items()
             }
             last_batch = (i + self.microbatch) >= batch.shape[0]
-            t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
 
-            train_diffusion = self.step > 10000
-            compute_losses = functools.partial(
-                    self.diffusion.training_bridge_losses,
-                    self.ddp_model,
-                    micro,
-                    t,
-                    model_kwargs=micro_cond,
-                    train_diffusion=train_diffusion
-                )
+            # train_diffusion = self.step > 10000
+            if self.diffusion is not None:
+                t, weights = self.schedule_sampler.sample(micro.shape[0], dist_util.dev())
+                compute_losses = functools.partial(
+                        self.diffusion.training_bridge_losses,
+                        self.ddp_model,
+                        micro,
+                        t,
+                        model_kwargs=micro_cond,
+                        train_diffusion=True
+                    )
+            else:
+                t = th.tensor([], device=dist_util.dev())
+                weights = th.tensor([1], device=dist_util.dev())
+                # weights = th.ones_like(t)
+                compute_losses = functools.partial(
+                        training_contrastive_losses,
+                        self.ddp_model,
+                        micro,
+                        model_kwargs=micro_cond,
+                    )
 
             if last_batch or not self.use_ddp:
                 losses = compute_losses()
@@ -431,3 +444,22 @@ def log_loss_dict(diffusion, ts, losses):
             quartile = int(4 * sub_t / diffusion.sigma_max)
             logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
     # breakpoint()
+
+
+def training_contrastive_losses(model, x0, model_kwargs):
+    
+    # breakpoint()
+    assert model_kwargs is not None
+    xT = model_kwargs['xT']
+    
+    loss_A_ce, loss_B_ce, loss_A_re, loss_B_re = model(xT, x0)
+    terms={}
+
+    terms["recon/x0_loss"] = mean_flat(loss_B_re)
+    terms["recon/xT_loss"] = mean_flat(loss_A_re)
+    terms["contrastive/x0_loss"] = mean_flat(loss_B_ce)
+    terms["contrastive/xT_loss"] = mean_flat(loss_A_ce)
+
+    terms["loss"] = 10*mean_flat(loss_B_re) + mean_flat(loss_A_re) + 1e-3*mean_flat(loss_A_ce) + 1e-3*mean_flat(loss_B_ce)
+    # if 
+    return terms
