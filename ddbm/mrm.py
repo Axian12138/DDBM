@@ -248,26 +248,100 @@ class MRM(nn.Module):
 
         return output
 
-    def convert_to_fp16(self):
-        """
-        Convert the torso of the model to float16.
-        """
-        
-        self.embed_timestep.apply(convert_module_to_f16)
-        self.input_process.apply(convert_module_to_f16)
-        self.sequence_pos_encoder.apply(convert_module_to_f16)
-        self.seqTransEncoder.apply(convert_module_to_f16)
-        self.output_process.apply(convert_module_to_f16)
-    
-    def convert_to_fp32(self):
-        """
-        Convert the torso of the model to float32.
-        """
-        self.input_process.apply(convert_module_to_f32)
-        self.sequence_pos_encoder.apply(convert_module_to_f32)
-        self.seqTransEncoder.apply(convert_module_to_f32)
-        self.output_process.apply(convert_module_to_f32)
 
+class ContrastiveModel(nn.Module):
+    def __init__(self, modeltype, njoints, nfeats, translation, pose_rep, glob, glob_rot,
+                 latent_dim=256, ff_size=1024, num_layers=8, num_heads=4, dropout=0.1,
+                use_fp16=False, use_latent = False, 
+                 ablation=None, activation="gelu", legacy=False, data_rep='rot6d', clip_dim=512,# dataset='amass',
+                 arch='trans_enc', emb_trans_dec=False, clip_version=None, **kargs):
+        super().__init__()
+
+        # self.legacy = legacy
+        # self.modeltype = modeltype
+        self.njoints = njoints
+        self.nfeats = nfeats
+        # self.num_actions = num_actions
+        self.dtype = torch.float16 if use_fp16 else torch.float32
+        self.data_rep = data_rep
+        # self.dataset = dataset
+
+        # self.pose_rep = pose_rep
+        # self.glob = glob
+        # self.glob_rot = glob_rot
+        self.translation = translation
+
+        self.latent_dim = latent_dim
+        self.use_latent = use_latent
+
+        self.ff_size = ff_size
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.dropout = dropout
+
+        self.ablation = ablation
+        self.activation = activation
+        self.clip_dim = clip_dim
+        self.action_emb = kargs.get('action_emb', None)
+
+        self.input_feats = self.njoints * self.nfeats
+
+        self.normalize_output = kargs.get('normalize_encoder_output', False)
+
+        self.cond_mode = kargs.get('cond_mode', 'no_cond')
+        self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
+        self.arch = arch
+        self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
+
+        self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
+        self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+
+
+        self.emb_trans_dec = emb_trans_dec
+
+        # self.embed_timestep = TimestepEmbedder(self.latent_dim, self.sequence_pos_encoder)
+        self.model_channels = self.latent_dim // 4
+
+
+        self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
+                                            self.nfeats)
+        
+        self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
+                                                self.nfeats)
+        
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+        # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
+
+    def forward(self, xT, x0):
+        L_A = self.enc_A(xT)
+        L_B = self.enc_B(x0)
+
+        xT_recon = self.dec_A(L_A)
+        x0_recon = self.dec_B(L_B)
+
+        # normalized features
+
+        # L_A=L_A.squeeze(1)
+        # L_B=L_B.squeeze(1)
+        # cosine similarity as logits
+        logit_scale = self.logit_scale.exp()
+        logits = logit_scale * F.cosine_similarity(L_A, L_B.permute(1,0,2), dim=-1)
+        # L_A = L_A / L_A.norm(dim=-1, keepdim=True)
+        # L_B = L_B / L_B.norm(dim=-1, keepdim=True)
+        # logits = logit_scale * L_A.squeeze(1) @ L_B.squeeze(1).T
+        labels = torch.arange(len(xT), device=xT.device)
+        loss_A_ce = F.cross_entropy(logits, labels)
+        loss_B_ce = F.cross_entropy(logits.t(), labels)
+        loss_A_re = F.mse_loss(xT_recon, xT)
+        loss_B_re = F.mse_loss(x0_recon, x0)
+
+        # labels = np.arange(n)
+        # loss_i = cross_entropy_loss(logits, labels, axis=0)
+        # loss_t = cross_entropy_loss(logits, labels, axis=1)
+        # breakpoint()
+
+
+        return loss_A_ce, loss_B_ce, loss_A_re, loss_B_re
 
 
 class PositionalEncoding(nn.Module):
