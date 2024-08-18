@@ -72,7 +72,7 @@ def main(args):
                     logger.log('Resuming from checkpoint: ', max_ckpt)
 
     if args.human_data_path is not None:
-        vae_workdir = f'workdir/enc_{args.num_channels}d'
+        vae_workdir = f'workdir/enc_{args.num_channels}d_new'
         vae_ckpts = list(glob(f'{vae_workdir}/*model*[0-9].*'))
         if len(vae_ckpts) > 0:
             max_ckpt = max(vae_ckpts, key=lambda x: int(x.split('model_')[-1].split('.')[0]))
