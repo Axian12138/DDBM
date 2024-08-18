@@ -291,10 +291,9 @@ class ContrastiveModel(nn.Module):
         self.cond_mode = kargs.get('cond_mode', 'no_cond')
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
-        self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
 
-        self.enc_A = InputProcess(self.data_rep, 78+self.gru_emb_dim, self.latent_dim)
-        self.enc_B = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+        self.enc_A = InputProcess(self.data_rep, 78 + self.input_feats, self.latent_dim)
+        self.enc_B = InputProcess(self.data_rep, self.input_feats, self.latent_dim)
 
 
         self.emb_trans_dec = emb_trans_dec
@@ -303,7 +302,7 @@ class ContrastiveModel(nn.Module):
         self.model_channels = self.latent_dim // 4
 
 
-        self.dec_A = OutputProcess(self.data_rep, 78, self.latent_dim, self.njoints,
+        self.dec_A = OutputProcess(self.data_rep, 78 + self.input_feats, self.latent_dim, self.njoints,
                                             self.nfeats)
         
         self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
