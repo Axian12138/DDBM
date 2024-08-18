@@ -286,17 +286,16 @@ class MotionDataset(torch.utils.data.Dataset):
                 continue
             name = data_pair['name']
             self.names.append(name)
-          
+        
+            target_jt_A = torch.from_numpy(data_pair['jt_A'])[:,:19]#.to(device)
+            target_global_pos_A = torch.from_numpy(data_pair['global_A'])[:,:3]#.to(device)
+            target_global_ori_A = torch.from_numpy(data_pair['global_A'])[:,20*3:20*3+6]#.to(device)
+            target_root_A = torch.concat([target_global_pos_A, target_global_ori_A], dim=1)
             if human_data_path is not None:
-                target_jt_A = human_data_dict[name]['local_translation'][:,1:].reshape(-1,23*3)#.to(device)
+                target_jt_A = torch.cat([human_data_dict[name]['local_translation'][:,1:].reshape(-1,23*3),target_jt_A],dim=-1)#.to(device)
                 # target_jt_A[:,0] = 0
-                target_root_A = human_data_dict[name]['root_transformation']
+                target_root_A = torch.cat([human_data_dict[name]['root_transformation'], target_root_A], dim=1)
                 # breakpoint()
-            else:
-                target_jt_A = torch.from_numpy(data_pair['jt_A'])[:,:19]#.to(device)
-                target_global_pos_A = torch.from_numpy(data_pair['global_A'])[:,:3]#.to(device)
-                target_global_ori_A = torch.from_numpy(data_pair['global_A'])[:,20*3:20*3+6]#.to(device)
-                target_root_A = torch.concat([target_global_pos_A, target_global_ori_A], dim=1)
             target_jt_B = torch.from_numpy(data_pair['jt_B'])[:,:19]#.to(device)
             target_global_pos_B = torch.from_numpy(data_pair['global_B'])[:,:3]#.to(device)
             target_global_ori_B = torch.from_numpy(data_pair['global_B'])[:,20*3:20*3+6]#.to(device)
@@ -327,8 +326,8 @@ class MotionDataset(torch.utils.data.Dataset):
         self.jt_B = torch.cat(self.jt_B, dim=0)
         self.root_A = torch.cat(self.root_A, dim=0)
         self.root_B = torch.cat(self.root_B, dim=0)
-        self.jt_root_A = torch.concat([self.jt_A, self.root_A], dim=1)
-        self.jt_root_B = torch.concat([self.jt_B, self.root_B], dim=1)
+        self.jt_root_A = torch.concat([self.jt_A, self.root_A], dim=1).type(torch.float32)
+        self.jt_root_B = torch.concat([self.jt_B, self.root_B], dim=1).type(torch.float32)
         # normalize
         self.mean_A = self.jt_root_A.mean(dim=0, keepdim=True)
         self.mean_B = self.jt_root_B.mean(dim=0, keepdim=True)
