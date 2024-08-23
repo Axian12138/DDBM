@@ -80,7 +80,7 @@ def model_and_diffusion_defaults():
         layers=8,
         # latent_dim=512,
         cond_mask_prob=1.0,
-        emb_trans_dec=False,
+        emb_trans_dec=True,
         arch='trans_enc',
     )
     return res

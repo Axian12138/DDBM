@@ -386,4 +386,4 @@ class MotionDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         """Return the total number of images in the dataset."""
-        return self.length
+        return 16#self.length

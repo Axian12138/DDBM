@@ -98,9 +98,9 @@ class KarrasDenoiser:
                 b_t = -th.expm1(logsnr_T - logsnr_t) * logs_t.exp()
                 c_t = -th.expm1(logsnr_T - logsnr_t) * (2*logs_t - logsnr_t).exp()
 
-                a_t = append_dims(a_t, self.cov_xy.ndim)
-                b_t = append_dims(b_t, self.cov_xy.ndim)
-                c_t = append_dims(c_t, self.cov_xy.ndim)
+                # a_t = append_dims(a_t, self.cov_xy.ndim)
+                # b_t = append_dims(b_t, self.cov_xy.ndim)
+                # c_t = append_dims(c_t, self.cov_xy.ndim)
 
                 A = a_t**2 * self.sigma_data_end**2 + b_t**2 * self.sigma_data**2 + 2*a_t * b_t * self.cov_xy + self.c**2 * c_t
                 weightings = A / (a_t**2 * (self.sigma_data_end**2 * self.sigma_data**2 - self.cov_xy**2) + self.sigma_data**2 * self.c**2 * c_t )
@@ -141,9 +141,9 @@ class KarrasDenoiser:
             c_t = -th.expm1(logsnr_T - logsnr_t) * (2*logs_t - logsnr_t).exp()
 
             # breakpoint()
-            a_t = append_dims(a_t, self.cov_xy.ndim)
-            b_t = append_dims(b_t, self.cov_xy.ndim)
-            c_t = append_dims(c_t, self.cov_xy.ndim)
+            # a_t = append_dims(a_t, self.cov_xy.ndim)
+            # b_t = append_dims(b_t, self.cov_xy.ndim)
+            # c_t = append_dims(c_t, self.cov_xy.ndim)
             A = a_t**2 * self.sigma_data_end**2 + b_t**2 * self.sigma_data**2 + 2*a_t * b_t * self.cov_xy + self.c**2 * c_t
             
             
@@ -179,6 +179,7 @@ class KarrasDenoiser:
         else:
             L_A = xT
             L_B = x0
+        model_kwargs['xT'] = L_A
         if noise is None:
             noise = th.randn_like(L_A) 
         def bridge_sample(x0, xT, t):
@@ -225,8 +226,8 @@ class KarrasDenoiser:
         # terms["mse"] = mean_flat(weights * (x0_denoised - x0) ** 2) / th.std(L_B, dim=-1, keepdim = True)
         terms["mse/xs_loss"] = mean_flat((denoised - L_B) ** 2)
         terms["mse/dec_loss"] = mean_flat((x0_denoised - x0) ** 2)
-        terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
-        terms["loss"] += mean_flat(weights * (x0_denoised - x0) ** 2)
+        # terms["mse/loss"] = mean_flat(weights * (denoised - L_B) ** 2)
+        terms["loss"] += mean_flat(weights * (denoised - L_B) ** 2)
         if "vb" in terms:
             terms["loss"] += terms["vb"]
         # else:

@@ -1,6 +1,6 @@
 # training
-BS=64
-MICRO=32
+BS=128
+MICRO=128
 NGPU=1
 SAVE_ITER=1000
 
@@ -15,10 +15,10 @@ SAMPLER=real-uniform # real-uniform??
 
 # data
 NORMALIZE=False
-# DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
-DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
-# HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
-HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_translation_13370_amass_isaac_train_all.pkl'
+DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
+# DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
+HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
+# HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_translation_13370_amass_isaac_train_all.pkl'
 ONLY_POSE=False
 
 # network
@@ -44,7 +44,7 @@ elif  [[ $PRED == "vp" ]]; then
     COND=concat
     BETA_D=2
     BETA_MIN=0.1
-    SIGMA_MAX=1
+    # SIGMA_MAX=1
     SIGMA_MIN=0.0001
 elif  [[ $PRED == "ve_simple" ]]; then
     EXP+="_ve_simple"
@@ -54,7 +54,7 @@ elif  [[ $PRED == "vp_simple" ]]; then
     COND=concat
     BETA_D=2
     BETA_MIN=0.1
-    SIGMA_MAX=1
+    # SIGMA_MAX=1
     SIGMA_MIN=0.0001
 else
     echo "Not supported"
