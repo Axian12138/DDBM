@@ -203,5 +203,6 @@ def create_argparser():
 
 
 if __name__ == "__main__":
+    print('----------')
     args = create_argparser().parse_args()
     main(args)

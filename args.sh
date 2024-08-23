@@ -1,6 +1,6 @@
 # training
 BS=128
-MICRO=16
+MICRO=128
 NGPU=1
 SAVE_ITER=1000
 
@@ -18,12 +18,12 @@ NORMALIZE=False
 # DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
 DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
 # HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
-HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_translation_13370_amass_isaac_train_all.pkl'
+# HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_translation_13370_amass_isaac_train_all.pkl'
 ONLY_POSE=False
 
 # network
 # ARCH='trans_enc' # 'debug'
-ARCH='trans'
+ARCH='trans_enc'
 ATTN=32,16,8
 USE_16FP=False # True
 ATTN_TYPE=flash

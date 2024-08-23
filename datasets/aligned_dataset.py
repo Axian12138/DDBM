@@ -352,6 +352,7 @@ class MotionDataset(torch.utils.data.Dataset):
 
 
     def __getitem__(self, index):
+        index=index%16
         """Return a data point and its metadata information.
         Parameters:
             index - - a random integer for data indexing
@@ -386,4 +387,4 @@ class MotionDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         """Return the total number of images in the dataset."""
-        return 16#self.length
+        return self.length

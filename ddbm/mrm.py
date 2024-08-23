@@ -84,10 +84,10 @@ class MRM(nn.Module):
                                                               activation=activation)
             self.seqTransDecoder = nn.TransformerDecoder(seqTransDecoderLayer,
                                                          num_layers=self.num_layers)
-        elif self.arch == 'gru':
+        if self.arch == 'gru':
             print("GRU init")
             self.gru = nn.GRU(self.latent_dim, self.latent_dim, num_layers=self.num_layers, batch_first=True)
-        else:
+        elif self.arch == 'debug':
             print("===============debug=============================")
             self.debug=True
             # raise ValueError('Please choose correct architecture [trans_enc, trans_dec, gru]')
