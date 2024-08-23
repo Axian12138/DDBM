@@ -23,7 +23,7 @@ ONLY_POSE=False
 
 # network
 # ARCH='trans_enc' # 'debug'
-ARCH='trans_enc'
+ARCH='trans'
 ATTN=32,16,8
 USE_16FP=False # True
 ATTN_TYPE=flash
