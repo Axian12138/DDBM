@@ -65,7 +65,7 @@ class MRM(nn.Module):
         self.emb_trans_dec = emb_trans_dec
         self.debug=False
 
-        if self.arch == 'trans_enc':
+        if self.arch == 'trans_enc' or self.arch == 'trans':
             print("TRANS_ENC init")
             seqTransEncoderLayer = nn.TransformerEncoderLayer(d_model=self.latent_dim,
                                                               nhead=self.num_heads,
@@ -75,7 +75,7 @@ class MRM(nn.Module):
 
             self.seqTransEncoder = nn.TransformerEncoder(seqTransEncoderLayer,
                                                          num_layers=self.num_layers)
-        elif self.arch == 'trans_dec':
+        if self.arch == 'trans_dec' or self.arch == 'trans':
             print("TRANS_DEC init")
             seqTransDecoderLayer = nn.TransformerDecoderLayer(d_model=self.latent_dim,
                                                               nhead=self.num_heads,
@@ -222,6 +222,7 @@ class MRM(nn.Module):
         #     xT = self.input_process(xT)
         # else:
         x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+        xT = xT.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
 
         if self.arch == 'trans_enc':
             # adding the timestep embed
@@ -239,7 +240,17 @@ class MRM(nn.Module):
                 x = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
             else:
                 x = self.seqTransDecoder(tgt=xseq, memory=emb)
+        
+        elif self.arch == 'trans':
 
+            xTseq = torch.cat((emb, xT), axis=0)  # [seqlen+1, bs, d]
+            xTseq = self.sequence_pos_encoder(xTseq)  # [seqlen+1, bs, d]
+            xT = self.seqTransEncoder(xTseq) # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+
+
+            xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            x = self.seqTransDecoder(tgt=xseq, memory=xT)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
         
         if not self.use_latent:
             x = self.output_process(x)  # [bs, njoints, nfeats, nframes]
