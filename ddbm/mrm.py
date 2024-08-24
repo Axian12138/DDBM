@@ -204,7 +204,7 @@ class MRM(nn.Module):
         return output
     
 
-    def forward(self, x, timesteps, y=None, xT=None):
+    def forward(self, x, timesteps, xT=None):
         """
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
@@ -217,6 +217,7 @@ class MRM(nn.Module):
         x = x.type(self.dtype)
         if not self.use_latent:
             x = self.input_process(x)
+            xT = self.input_process(xT)
         # if xT is not None:
         #     xT = xT.type(self.dtype)
         #     xT = self.input_process(xT)
@@ -245,12 +246,12 @@ class MRM(nn.Module):
 
             xTseq = torch.cat((emb, xT), axis=0)  # [seqlen+1, bs, d]
             xTseq = self.sequence_pos_encoder(xTseq)  # [seqlen+1, bs, d]
-            xT = self.seqTransEncoder(xTseq) # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
 
 
             xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
             xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
-            x = self.seqTransDecoder(tgt=xseq, memory=xT)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
+            xseq = self.seqTransEncoder(xseq) # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+            x = self.seqTransDecoder(tgt=xTseq, memory=xseq)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
         
         if not self.use_latent:
             x = self.output_process(x)  # [bs, njoints, nfeats, nframes]
