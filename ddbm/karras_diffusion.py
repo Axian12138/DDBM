@@ -200,6 +200,7 @@ class KarrasDenoiser:
                 std_t = (-th.expm1(logsnr_T - logsnr_t)).sqrt() * (logs_t - logsnr_t/2).exp()
                 
                 samples= a_t * xT + b_t * x0 + std_t * noise
+                breakpoint()
                 
                 
             return samples
