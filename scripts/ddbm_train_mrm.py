@@ -193,6 +193,7 @@ def create_argparser():
         human_data_path=None,
         load_pose=False,
         normalize=True,
+        vae_checkpoint=None,
         # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )
