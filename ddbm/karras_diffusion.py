@@ -167,6 +167,8 @@ class KarrasDenoiser:
         assert model_kwargs is not None
         xT = model_kwargs['xT']
         sigmas =th.minimum(sigmas, th.ones_like(sigmas, dtype=sigmas.dtype)* self.sigma_max)
+        # sigmas
+        # sigmas=th.linspace(0, self.sigma_max, sigmas.shape[0],dtype=sigmas.dtype, device=sigmas.device)
         terms = {}
 
         dims = x0.ndim
@@ -200,7 +202,7 @@ class KarrasDenoiser:
                 std_t = (-th.expm1(logsnr_T - logsnr_t)).sqrt() * (logs_t - logsnr_t/2).exp()
                 
                 samples= a_t * xT + b_t * x0 + std_t * noise
-                breakpoint()
+            # breakpoint()
                 
                 
             return samples
