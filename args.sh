@@ -1,6 +1,6 @@
 # training
-BS=128
-MICRO=128
+BS=1200
+MICRO=1200
 NGPU=1
 SAVE_ITER=1000
 
@@ -15,11 +15,12 @@ SAMPLER=real-uniform # real-uniform??
 
 # data
 NORMALIZE=False
-DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
-# DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl'
+# DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
+RECYCLE_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_7720.pkl'
+RETARGET_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/retarget_11112_amass_isaac_train_phc.pkl'
 # HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
-# HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_translation_13370_amass_isaac_train_all.pkl'
-ONLY_POSE=False
+HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_11113_amass_isaac_train_phc.pkl'
+ONLY_POSE=True
 
 # network
 # ARCH='trans_enc' # 'debug'
@@ -28,7 +29,7 @@ ATTN=32,16,8
 USE_16FP=False # True
 ATTN_TYPE=flash
 
-NUM_CH=192
+NUM_CH=24
 # NUM_RES_BLOCKS=2
 NUM_RES_BLOCKS=3
 

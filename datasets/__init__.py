@@ -262,7 +262,8 @@ def load_data(
 
 
 def load_data_motion(
-    data_path,
+    recycle_data_path,
+    retarget_data_path,
     # data_path_B,
     batch_size,
     deterministic=False,
@@ -278,11 +279,12 @@ def load_data_motion(
   
 
     from .aligned_dataset import MotionDataset
-    trainset = MotionDataset(data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm)
+    trainset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm)
 
-    valset = MotionDataset(data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm)
+    valset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm)
     if include_test:
-        testset = MotionDataset(dataroot=root, train=False)
+        # testset = MotionDataset(dataroot=root, train=False)
+        ...
 
 
     

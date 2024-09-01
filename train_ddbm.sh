@@ -7,7 +7,7 @@ CKPT=$4
 source ./args.sh $DATASET_NAME $PRED
 
 FREQ_SAVE_ITER=20000
-CUDA_VISIBLE_DEVICES=0 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
+CUDA_VISIBLE_DEVICES=4 mpiexec -n $NGPU python scripts/ddbm_train_contr.py --exp=$EXP \
  --attention_resolutions $ATTN --class_cond False --use_scale_shift_norm True \
   --dropout 0.1 --ema_rate 0.9999 --batch_size $BS \
    --lr 0.0001 --num_channels $NUM_CH --num_head_channels 64 \
@@ -19,4 +19,5 @@ CUDA_VISIBLE_DEVICES=0 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$
       --num_workers=$NGPU  --sigma_data $SIGMA_DATA --cov_xy=$COV_XY --sigma_max=$SIGMA_MAX --sigma_min=$SIGMA_MIN \
       --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER \
       ${CKPT:+ --resume_checkpoint="${CKPT}"}  ${DEBUG:+ --debug="${DEBUG}"} \
-      --data_path $DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE
+      --recycle_data_path $RECYCLE_DATA_PATH --retarget_data_path $RETARGET_DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} \
+      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE
