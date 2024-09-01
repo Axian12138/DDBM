@@ -206,7 +206,7 @@ class TrainLoop:
 
     def run_loop(self):
         while True:
-            for batch, cond, _ in self.data:
+            for x0, xT, cond in self.data:
                 if not (not self.lr_anneal_steps or self.step < self.total_training_steps):
                     # Save the last checkpoint if it wasn't already saved.
                     if (self.step - 1) % self.save_interval != 0:
@@ -214,18 +214,20 @@ class TrainLoop:
                     return
                 # scale to [-1, 1]
                 
-                batch = self.preprocess(batch)
+                x0 = self.preprocess(x0)
                     
                 if self.augment is not None:
-                    batch, _ = self.augment(batch)
-                if isinstance(cond, th.Tensor) and batch.ndim == cond.ndim:
-                    xT = self.preprocess(cond)
+                    x0, _ = self.augment(x0)
+                # if isinstance(xT, th.Tensor) and x0.ndim == xT.ndim:
+                xT = self.preprocess(xT)
+                cond = self.preprocess(cond)
+                
+                cond = {'cond': cond,
+                        'xT': xT}
+                # else:
+                #     cond['xT'] = self.preprocess(cond['xT'])
                     
-                    cond = {'xT': xT}
-                else:
-                    cond['xT'] = self.preprocess(cond['xT'])
-                    
-                took_step = self.run_step(batch, cond)
+                took_step = self.run_step(x0, cond)
                 if took_step and self.step % self.log_interval == 0:
                     logs = logger.dumpkvs()
 
@@ -440,6 +442,8 @@ def log_loss_dict(diffusion, ts, losses):
     for key, values in losses.items():
         logger.logkv_mean(key, values.mean().item())
         # Log the quantiles (four quartiles, in particular).
+        if ts.shape[0] == 0:
+            continue
         for sub_t, sub_loss in zip(ts.cpu().numpy(), values.detach().cpu().numpy()):
             quartile = int(4 * sub_t / diffusion.sigma_max)
             logger.logkv_mean(f"{key}_q{quartile}", sub_loss)
@@ -451,15 +455,17 @@ def training_contrastive_losses(model, x0, model_kwargs):
     # breakpoint()
     assert model_kwargs is not None
     xT = model_kwargs['xT']
+    human = model_kwargs['cond']
     
-    loss_A_ce, loss_B_ce, loss_A_re, loss_B_re = model(xT, x0)
+    loss_A_ce, loss_T_ce, loss_A_re, loss_T_re, loss_0_re = model(human, xT, x0)
     terms={}
 
-    terms["recon/x0_loss"] = mean_flat(loss_B_re)
-    terms["recon/xT_loss"] = mean_flat(loss_A_re)
-    terms["contrastive/x0_loss"] = mean_flat(loss_B_ce)
-    terms["contrastive/xT_loss"] = mean_flat(loss_A_ce)
+    terms["recon/x0"] = mean_flat(loss_0_re)
+    terms["recon/xT"] = mean_flat(loss_T_re)
+    terms["recon/human"] = mean_flat(loss_A_re)
+    terms["contrastive/xT"] = mean_flat(loss_T_ce)
+    terms["contrastive/human"] = mean_flat(loss_A_ce)
 
-    terms["loss"] = 10*mean_flat(loss_B_re) + mean_flat(loss_A_re) + 1e-3*mean_flat(loss_A_ce) + 1e-3*mean_flat(loss_B_ce)
+    terms["loss"] = 5*mean_flat(loss_0_re) + mean_flat(loss_A_re) + mean_flat(loss_T_re) + 1e-3*mean_flat(loss_A_ce) + 1e-3*mean_flat(loss_T_ce)
     # if 
     return terms

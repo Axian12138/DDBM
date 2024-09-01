@@ -303,9 +303,11 @@ class ContrastiveModel(nn.Module):
         self.cond_mode = kargs.get('cond_mode', 'no_cond')
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
+        self.human_dim=23*6+9
+        self.h1_dim=19+9
 
-        self.enc_A = InputProcess(self.data_rep, 78 + self.input_feats, self.latent_dim)
-        self.enc_B = InputProcess(self.data_rep, self.input_feats, self.latent_dim)
+        self.enc_A = InputProcess(self.data_rep, self.human_dim, self.latent_dim)
+        self.enc_B = InputProcess(self.data_rep, self.h1_dim, self.latent_dim)
 
 
         self.emb_trans_dec = emb_trans_dec
@@ -314,21 +316,52 @@ class ContrastiveModel(nn.Module):
         self.model_channels = self.latent_dim // 4
 
 
-        self.dec_A = OutputProcess(self.data_rep, 78 + self.input_feats, self.latent_dim, self.njoints,
+        self.dec_A = OutputProcess(self.data_rep, self.human_dim, self.latent_dim, self.njoints,
                                             self.nfeats)
         
-        self.dec_B = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
+        self.dec_B = OutputProcess(self.data_rep, self.h1_dim, self.latent_dim, self.njoints,
                                                 self.nfeats)
         
         self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
-    def forward(self, xT, x0):
-        L_A = self.enc_A(xT)
-        L_B = self.enc_B(x0)
+    # def forward(self, xT, x0):
+    #     L_A = self.enc_A(xT)
+    #     L_B = self.enc_B(x0)
 
-        xT_recon = self.dec_A(L_A)
-        x0_recon = self.dec_B(L_B)
+    #     xT_recon = self.dec_A(L_A)
+    #     x0_recon = self.dec_B(L_B)
+
+    #     # normalized features
+
+    #     # L_A=L_A.squeeze(1)
+    #     # L_B=L_B.squeeze(1)
+    #     # cosine similarity as logits
+    #     logit_scale = self.logit_scale.exp()
+    #     logits = logit_scale * F.cosine_similarity(L_A, L_B.permute(1,0,2), dim=-1)
+    #     # L_A = L_A / L_A.norm(dim=-1, keepdim=True)
+    #     # L_B = L_B / L_B.norm(dim=-1, keepdim=True)
+    #     # logits = logit_scale * L_A.squeeze(1) @ L_B.squeeze(1).T
+    #     labels = torch.arange(len(xT), device=xT.device)
+    #     loss_A_ce = F.cross_entropy(logits, labels)
+    #     loss_B_ce = F.cross_entropy(logits.t(), labels)
+    #     loss_A_re = F.mse_loss(xT_recon, xT)
+    #     loss_B_re = F.mse_loss(x0_recon, x0)
+
+    #     # labels = np.arange(n)
+    #     # loss_i = cross_entropy_loss(logits, labels, axis=0)
+    #     # loss_t = cross_entropy_loss(logits, labels, axis=1)
+    #     # breakpoint()
+    #     return loss_A_ce, loss_B_ce, loss_A_re, loss_B_re
+    
+    def forward(self, human, retarget, recycle):
+        L_A = self.enc_A(human)
+        L_0 = self.enc_B(recycle)
+        L_T = self.enc_B(retarget)
+
+        human_recon = self.dec_A(L_A)
+        retarget_recon = self.dec_B(L_T)
+        recycle_recon = self.dec_B(L_0)
 
         # normalized features
 
@@ -336,15 +369,16 @@ class ContrastiveModel(nn.Module):
         # L_B=L_B.squeeze(1)
         # cosine similarity as logits
         logit_scale = self.logit_scale.exp()
-        logits = logit_scale * F.cosine_similarity(L_A, L_B.permute(1,0,2), dim=-1)
+        logits = logit_scale * F.cosine_similarity(L_A, L_T.permute(1,0,2), dim=-1)
         # L_A = L_A / L_A.norm(dim=-1, keepdim=True)
         # L_B = L_B / L_B.norm(dim=-1, keepdim=True)
         # logits = logit_scale * L_A.squeeze(1) @ L_B.squeeze(1).T
-        labels = torch.arange(len(xT), device=xT.device)
+        labels = torch.arange(len(human), device=human.device)
         loss_A_ce = F.cross_entropy(logits, labels)
-        loss_B_ce = F.cross_entropy(logits.t(), labels)
-        loss_A_re = F.mse_loss(xT_recon, xT)
-        loss_B_re = F.mse_loss(x0_recon, x0)
+        loss_T_ce = F.cross_entropy(logits.t(), labels)
+        loss_A_re = F.mse_loss(human_recon, human)
+        loss_T_re = F.mse_loss(retarget_recon, retarget)
+        loss_0_re = F.mse_loss(recycle_recon, recycle)
 
         # labels = np.arange(n)
         # loss_i = cross_entropy_loss(logits, labels, axis=0)
@@ -352,7 +386,7 @@ class ContrastiveModel(nn.Module):
         # breakpoint()
 
 
-        return loss_A_ce, loss_B_ce, loss_A_re, loss_B_re
+        return loss_A_ce, loss_T_ce, loss_A_re, loss_T_re, loss_0_re
 
 
 class PositionalEncoding(nn.Module):
