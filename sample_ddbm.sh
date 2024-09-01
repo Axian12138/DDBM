@@ -11,9 +11,9 @@ SPLIT=$6
 source ./args.sh $DATASET_NAME $PRED 
 
 
-N=200
+N=10
 GEN_SAMPLER=heun
-BS=16
+BS=1
 NGPU=1
 
 mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
@@ -26,6 +26,6 @@ mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
     --weight_schedule bridge_karras \
     --rho 7 --upscale=False ${CH_MULT:+ --channel_mult="${CH_MULT}"} \
     ${UNET:+ --unet_type="${UNET}"} ${SPLIT:+ --split="${SPLIT}"} ${GUIDANCE:+ --guidance="${GUIDANCE}"} \
-    --data_path $DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} --load_pose=True
+    --data_path $DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} --load_pose=$ONLY_POSE
  
 

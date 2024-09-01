@@ -234,7 +234,7 @@ class KarrasDenoiser:
         if "vb" in terms:
             terms["loss"] += terms["vb"]
         # else:
-        # breakpoint()
+        breakpoint()
         return terms
     
 
@@ -292,20 +292,36 @@ def karras_sample(
                 
         return denoised
     
-    L_A = model.enc_A(x_T)
-    L_B_gt = model.enc_B(x_0)
+    if diffusion.vae is not None:
+        # breakpoint()
+        with th.no_grad():
+            L_A = diffusion.vae.enc_A(x_T)
+            L_B_gt = diffusion.vae.enc_B(x_0)
+    else:
+        L_A = x_T
+        L_B_gt = x_0
+
+    # L_A = model.enc_A(x_T)
+    # L_B_gt = model.enc_B(x_0)
+    breakpoint()
     L_B, path, nfe = sample_fn(
         denoiser,
-        L_B_gt,
+        L_A,
         sigmas,
         progress=progress,
         callback=callback,
         guidance=guidance,
         **sampler_args,
     )
-    print('nfe:', nfe)
-    x_0 = model.dec_B(L_B)
     breakpoint()
+    print('nfe:', nfe)
+    # x_0 = model.dec_B(L_B)
+    if diffusion.vae is not None:
+        # breakpoint()
+        with th.no_grad():
+            x_0 = diffusion.vae.dec_B(L_B)
+    else:
+        x_0 = L_B
 
     return x_0, path, nfe
     # return x_0.clamp(-1, 1), [x.clamp(-1, 1) for x in path], nfe
@@ -338,7 +354,7 @@ def to_d(x, sigma, denoised, x_T, sigma_max,   w=1, stochastic=False):
     grad_pxTlxt = (x_T - x) / (append_dims(th.ones_like(sigma)*sigma_max**2, x.ndim) - append_dims(sigma**2, x.ndim))
     gt2 = 2*sigma
     d = - (0.5 if not stochastic else 1) * gt2 * (grad_pxtlx0 - w * grad_pxTlxt * (0 if stochastic else 1))
-    breakpoint()
+    # breakpoint()
     if stochastic:
         return d, gt2
     else:
@@ -433,6 +449,7 @@ def sample_heun(
         
         # heun step
         denoised = denoiser(x, sigma_hat * s_in, x_T)
+        breakpoint()
         if pred_mode.startswith('ve'):
             # d =  (x - denoised ) / append_dims(sigma_hat, x.ndim)
             d = to_d(x, sigma_hat, denoised, x_T, sigma_max, w=guidance)

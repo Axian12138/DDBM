@@ -1,6 +1,6 @@
 # training
-BS=120
-MICRO=60
+BS=128
+MICRO=128
 NGPU=1
 SAVE_ITER=1000
 
@@ -23,7 +23,7 @@ ONLY_POSE=False
 
 # network
 # ARCH='trans_enc' # 'debug'
-ARCH='trans'
+ARCH='trans_enc'
 ATTN=32,16,8
 USE_16FP=False # True
 ATTN_TYPE=flash
@@ -55,7 +55,7 @@ elif  [[ $PRED == "vp_simple" ]]; then
     BETA_D=2
     BETA_MIN=0.1
     # SIGMA_MAX=1
-    SIGMA_MIN=0.00001
+    SIGMA_MIN=0.0001
 else
     echo "Not supported"
     exit 1

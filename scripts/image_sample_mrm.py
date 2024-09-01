@@ -48,9 +48,16 @@ def main():
 
 
     logger.log("creating model and diffusion...")
-    model, diffusion = create_model_and_diffusion_mrm(
-        args
+    model, diffusion, vae = create_model_and_diffusion_mrm(
+        args, 
     )
+    if vae is not None:
+        vae.load_state_dict(
+            th.load(args.vae_checkpoint, map_location=dist_util.dev()),
+            )
+        vae.to(dist_util.dev())
+        vae.eval()
+        diffusion.vae = vae
     model.load_state_dict(
         dist_util.load_state_dict(args.model_path, map_location="cpu")
     )
@@ -101,6 +108,7 @@ def main():
         index = data[2].to(dist_util.dev())
 
         bs = x0.shape[0]
+        # breakpoint()
             
             
                 
@@ -213,6 +221,7 @@ def create_argparser():
         data_path=None,
         human_data_path=None,
         load_pose=False,
+        vae_checkpoint=None,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
