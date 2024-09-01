@@ -241,13 +241,15 @@ class TrainLoop:
                     if os.environ.get("DIFFUSION_TRAINING_TEST", "") and self.step > 0:
                         return
                     
-                    test_batch, test_cond, _ = next(iter(self.test_data))
-                    test_batch = self.preprocess(test_batch)
-                    if isinstance(test_cond, th.Tensor) and test_batch.ndim == test_cond.ndim:
-                        test_cond = {'xT': self.preprocess(test_cond)}
-                    else:
-                        test_cond['xT'] = self.preprocess(test_cond['xT'])
-                    self.run_test_step(test_batch, test_cond)
+                    test_x0, test_xT, test_cond = next(iter(self.test_data))
+                    test_x0 = self.preprocess(test_x0)
+                    # if isinstance(test_cond, th.Tensor) and test_x0.ndim == test_cond.ndim:
+                    #     test_cond = {'xT': self.preprocess(test_cond)}
+                    # else:
+                    #     test_cond['xT'] = self.preprocess(test_cond['xT'])
+                    test_cond = {'cond': test_cond,
+                            'xT': test_xT}
+                    self.run_test_step(test_x0, test_cond)
                     logs = logger.dumpkvs()
 
                     if dist.get_rank() == 0:
