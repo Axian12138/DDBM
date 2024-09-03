@@ -27,9 +27,9 @@ from datasets import load_data_motion
 from pathlib import Path
 
 from PIL import Image
-def get_workdir(exp):
-    workdir = f'./workdir/{exp}'
-    return workdir
+# def get_workdir(exp):
+#     workdir = f'./workdir/{exp}'
+#     return workdir
 
 def main():
     args = create_argparser().parse_args()
@@ -39,10 +39,9 @@ def main():
     ## assume ema ckpt format: ema_{rate}_{steps}.pt
     split = args.model_path.split("_")
     step = int(split[-1].split(".")[0])
-    sample_dir = Path(workdir)/f'sample_{step}/w={args.guidance}_churn={args.churn_step_ratio}'
+    sample_dir = Path(workdir)/f'sample_{step}/w={args.guidance}_churn={args.churn_step_ratio}_{args.pred_mode}'
     dist_util.setup_dist()
     if dist.get_rank() == 0:
-
         sample_dir.mkdir(parents=True, exist_ok=True)
     logger.configure(dir=workdir)
 
@@ -75,14 +74,17 @@ def main():
     
 
     all_dataloaders = load_data_motion(
-        data_path=args.data_path,
+        recycle_data_path=args.recycle_data_path,
+        retarget_data_path=args.retarget_data_path,
+        # data_path=args.data_path,
         # data_path_B=args.data_path_B,
         deterministic = True,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         seed=args.seed,
         human_data_path=args.human_data_path,
-        load_pose = args.load_pose
+        load_pose = args.load_pose,
+        norm = args.normalize,
     )
     if args.split =='train':
         dataloader = all_dataloaders[1]
@@ -91,9 +93,11 @@ def main():
     else:
         raise NotImplementedError
     args.num_samples = len(dataloader.dataset)
+    names = dataloader.dataset.names
 
-
-    motion_pkls = []
+    motion_pkls = {}
+    denoised_error_all = []
+    x_error_all = []
     
     for i, data in enumerate(dataloader):
         
@@ -112,7 +116,7 @@ def main():
             
             
                 
-        sample, path, nfe = karras_sample(
+        sample, path, nfe, denoised_error, x_error = karras_sample(
             diffusion,
             model,
             y0,
@@ -129,7 +133,8 @@ def main():
             guidance=args.guidance
         )
         
-
+        denoised_error_all.append(th.cat(denoised_error))
+        x_error_all.append(th.cat(x_error))
         # sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
         # sample = sample.permute(0, 2, 3, 1)
         # sample = sample.contiguous()
@@ -152,16 +157,15 @@ def main():
         # gathered_samples = th.cat(gathered_samples)
         # gathered_xs = th.cat(gathered_xs)
         # gathered_ys = th.cat(gathered_ys)
-        for samples, xs, ys in zip(gathered_samples, gathered_xs, gathered_ys):
-            for id in range(bs):
-                motion_pkl = {
-
-                    'jt_root_B': xs[id].detach().cpu().numpy(),
-                    'jt_root_A': ys[id].detach().cpu().numpy(),
-                    'jt_root_diff': samples[id].detach().cpu().numpy()
+        for samples, ids in zip(gathered_samples, gathered_index):
+            for i in range(bs):
+                name = names[ids[i].item()]
+                motion_pkls[name] = {
+                    'jt': samples[i][:19].detach().cpu().numpy(),
+                    'global': samples[i][19:].detach().cpu().numpy(),
                 }
                 # breakpoint()
-                motion_pkls.append(motion_pkl)
+                # motion_pkls.append(motion_pkl)
             
 
         # num_display = min(32, sample.shape[0])
@@ -184,13 +188,27 @@ def main():
 
     # arr = np.concatenate(all_images, axis=0)
     # arr = arr[:args.num_samples]
-    
+    denoised_error_all = th.stack(denoised_error_all)
+    x_error_all = th.stack(x_error_all)
+    denoised_error_mean = denoised_error_all.mean(dim=0)
+    x_error_mean = x_error_all.mean(dim=0)
+    # plot
+    import matplotlib.pyplot as plt
+    plt.plot(denoised_error_mean.cpu().numpy())
+    plt.plot(x_error_mean.cpu().numpy())
+    # saving
+    if dist.get_rank() == 0:
+        plt.savefig(f"{sample_dir}/error.png")
+
+    logger.log(f"denoised error: {denoised_error_mean}")
+    logger.log(f"x error: {x_error_mean}")
     if dist.get_rank() == 0:
         # shape_str = "x".join([str(x) for x in arr.shape])
         # out_path = os.path.join(sample_dir, f"samples_{shape_str}_nfe{nfe}.npz")
         import joblib
-        filename=f"diff_{len(motion_pkls)}.pkl"
-        out_path=f"/home/ubuntu/data/PHC/{filename}"
+        out_path=args.recycle_data_path.replace("recycle","denoise_jtroot")
+        # out_path=f"/cephfs_yili/shared/xuehan/H1_RL/{filename}"
+        # out_path=f"/home/ubuntu/data/PHC/{filename}"
         logger.log(f"saving to {out_path}")
         joblib.dump(motion_pkls, out_path)
         # np.savez(out_path, arr)
@@ -218,9 +236,12 @@ def create_argparser():
         upscale=False,
         num_workers=2,
         guidance=1.,
-        data_path=None,
+        # data_path=None,
+        recycle_data_path=None,
+        retarget_data_path=None,
         human_data_path=None,
         load_pose=False,
+        normalize=False,
         vae_checkpoint=None,
     )
     defaults.update(model_and_diffusion_defaults())

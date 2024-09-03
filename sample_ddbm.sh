@@ -26,6 +26,7 @@ mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
     --weight_schedule bridge_karras \
     --rho 7 --upscale=False ${CH_MULT:+ --channel_mult="${CH_MULT}"} \
     ${UNET:+ --unet_type="${UNET}"} ${SPLIT:+ --split="${SPLIT}"} ${GUIDANCE:+ --guidance="${GUIDANCE}"} \
-    --data_path $DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} --load_pose=$ONLY_POSE
+      --recycle_data_path $RECYCLE_DATA_PATH --retarget_data_path $RETARGET_DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} \
+      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE
  
 

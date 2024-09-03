@@ -95,7 +95,8 @@ def main(args):
         logger.log("creating data loader...")
 
     data, test_data, cov_xy = load_data_motion(
-        data_path=args.data_path,
+        recycle_data_path=args.recycle_data_path,
+        retarget_data_path=args.retarget_data_path,
         # data_path_B=args.data_path_B,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
@@ -189,10 +190,11 @@ def create_argparser():
         debug=False,
         num_workers=2,
         use_augment=False,
-        data_path=None,
+        recycle_data_path=None,
+        retarget_data_path=None,
         human_data_path=None,
         load_pose=False,
-        normalize=True,
+        normalize=False,
         vae_checkpoint=None,
         # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',

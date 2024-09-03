@@ -367,7 +367,7 @@ class MotionDataset(torch.utils.data.Dataset):
 
 
     def __getitem__(self, index):
-        index=index%16
+        # index=index%16
         """Return a data point and its metadata information.
         Parameters:
             index - - a random integer for data indexing
@@ -398,12 +398,12 @@ class MotionDataset(torch.utils.data.Dataset):
             zero_pad_B = torch.zeros((self.max_length-motion_length, jt_root_B.shape[-1])).to(jt_root_A)
             A = torch.concat([jt_root_A, zero_pad_A], dim=0)
             B = torch.concat([jt_root_B, zero_pad_B], dim=0)
-            A = A[:500]
-            B = B[:500]
+            A = A[:100]
+            B = B[:100]
             if self.load_human:
                 zero_pad_C = torch.zeros((self.max_length-motion_length, jt_root_C.shape[-1])).to(jt_root_A)
                 C = torch.concat([jt_root_C, zero_pad_C], dim=0)
-                C = C[:500]
+                C = C[:100]
         if self.load_human:
             return B, A, C
         return B, A, index#self.names[index]

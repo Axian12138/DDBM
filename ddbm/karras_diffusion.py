@@ -216,7 +216,7 @@ class KarrasDenoiser:
 
         terms["loss"] = 0
         # if train_diffusion:
-        model_output, denoised = self.denoise(model, x_t, sigmas,  **model_kwargs)
+        model_output, denoised = self.denoise(model, x_t, sigmas,  model_kwargs['xT'])
         if self.vae is not None:
             x0_denoised = self.vae.dec_B(denoised)
         else:
@@ -234,12 +234,12 @@ class KarrasDenoiser:
         if "vb" in terms:
             terms["loss"] += terms["vb"]
         # else:
-        breakpoint()
+        # breakpoint()
         return terms
     
 
 
-    def denoise(self, model, x_t, sigmas ,**model_kwargs):
+    def denoise(self, model, x_t, sigmas ,xT):
         # breakpoint()
         c_skip, c_out, c_in = [ # BUG!!!!!!!!! check the shape
             append_dims(x, x_t.ndim) for x in self.get_bridge_scalings(sigmas)
@@ -249,7 +249,7 @@ class KarrasDenoiser:
         # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
         norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
         # norm_sigmas = sigmas
-        model_output = model(c_in * x_t, norm_sigmas, **model_kwargs)
+        model_output = model(c_in * x_t, norm_sigmas, xT)
         denoised = c_out * model_output + c_skip * x_t
         # breakpoint()
         return model_output, denoised
@@ -303,17 +303,18 @@ def karras_sample(
 
     # L_A = model.enc_A(x_T)
     # L_B_gt = model.enc_B(x_0)
-    breakpoint()
-    L_B, path, nfe = sample_fn(
+    # breakpoint()
+    L_B, path, nfe, denoised_error, x_error = sample_fn(
         denoiser,
         L_A,
+        L_B_gt,
         sigmas,
         progress=progress,
         callback=callback,
         guidance=guidance,
         **sampler_args,
     )
-    breakpoint()
+    # breakpoint()
     print('nfe:', nfe)
     # x_0 = model.dec_B(L_B)
     if diffusion.vae is not None:
@@ -323,7 +324,7 @@ def karras_sample(
     else:
         x_0 = L_B
 
-    return x_0, path, nfe
+    return x_0, path, nfe, denoised_error, x_error
     # return x_0.clamp(-1, 1), [x.clamp(-1, 1) for x in path], nfe
 
 
@@ -387,6 +388,7 @@ def get_d_vp(x, denoised, x_T, std_t,logsnr_t, logsnr_T, logs_t, logs_T, s_t_der
 def sample_heun(
     denoiser,
     x,
+    gt,
     sigmas,
     pred_mode='both',
     progress=False,
@@ -400,6 +402,8 @@ def sample_heun(
     """Implements Algorithm 2 (Heun steps) from Karras et al. (2022)."""
     x_T = x
     path = [x]
+    denoised_error=[]
+    x_error=[]
     
     s_in = x.new_ones([x.shape[0]])
     indices = range(len(sigmas) - 1)
@@ -428,7 +432,7 @@ def sample_heun(
     
     for j, i in enumerate(indices):
         
-        if churn_step_ratio > 0:
+        if churn_step_ratio > 0: # NOTE(xh) only at beginning refer to paper?
             # 1 step euler
             sigma_hat = (sigmas[i+1] - sigmas[i]) * churn_step_ratio + sigmas[i]
             
@@ -442,6 +446,8 @@ def sample_heun(
             x = x + d_1 * dt + th.randn_like(x) *((dt).abs() ** 0.5)*gt2.sqrt()
             
             nfe += 1
+            denoised_error.append(mean_flat((denoised - gt) ** 2))
+            x_error.append(mean_flat((x - gt) ** 2))
             
             path.append(x.detach().cpu())
         else:
@@ -449,7 +455,7 @@ def sample_heun(
         
         # heun step
         denoised = denoiser(x, sigma_hat * s_in, x_T)
-        breakpoint()
+        # breakpoint()
         if pred_mode.startswith('ve'):
             # d =  (x - denoised ) / append_dims(sigma_hat, x.ndim)
             d = to_d(x, sigma_hat, denoised, x_T, sigma_max, w=guidance)
@@ -457,6 +463,8 @@ def sample_heun(
             d = get_d_vp(x, denoised, x_T, std(sigma_hat),logsnr(sigma_hat), logsnr_T, logs(sigma_hat), logs_T, s_deriv(sigma_hat), vp_snr_sqrt_reciprocal(sigma_hat), vp_snr_sqrt_reciprocal_deriv(sigma_hat), guidance)
             
         nfe += 1
+        denoised_error.append(mean_flat((denoised - gt) ** 2))
+        x_error.append(mean_flat((x - gt) ** 2))
         if callback is not None:
             callback(
                 {
@@ -488,12 +496,14 @@ def sample_heun(
             # noise = th.zeros_like(x) if 'flow' in pred_mode or pred_mode == 'uncond' else generator.randn_like(x)
             x = x + d_prime * dt #+ noise * (sigmas[i + 1]**2 - sigma_hat**2).abs() ** 0.5
             nfe += 1
+            denoised_error.append(mean_flat((denoised_2 - gt) ** 2))
+            x_error.append(mean_flat((x - gt) ** 2))
         # loss = (denoised.detach().cpu() - x0).pow(2).mean().item()
         # losses.append(loss)
 
         path.append(x.detach().cpu())
         
-    return x, path, nfe
+    return x, path, nfe, denoised_error, x_error
 
 @th.no_grad()
 def forward_sample(
