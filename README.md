@@ -16,15 +16,24 @@ Simply set variables `DATASET_NAME` and `SCHEDULE_TYPE`:
 - `DATASET_NAME` specifies which dataset to use. We only support `e2h` for Edges2Handbags and `diode` for DIODE. For each dataset, make sure to set the respective `DATA_DIR` variable in `args.sh` to your dataset path.
 - `SCHEDULE_TYPE` denotes the noise schedule type. Only `ve` and `vp` are recommended. `ve_simple` and `vp_simple` are their naive baselines.
 
-To train, run
-```
+
+
 bash train_ddbm.sh test ve
 
-# to resume, set CKPT to your checkpoint, or it will automatically resume from your last checkpoint based on your experiment name.
 
-bash train_ddbm.sh $DATASET_NAME $SCHEDULE_TYPE $CKPT
-```
-bash sample_ddbm.sh none ve_simple /home/xuehan/DDBM/workdir/0901_newtrack_65motion_trans_enc_256d_ve_simple_1S_raw_motion_no_norm/model_695000.pt 0.33 1 train
+
+
+
+bash sample_ddbm.sh none ve_simple ./workdir/0903_64motion_trans_enc_256d_ve_simple_1S_raw_motion_no_norm/model_050000.pt 0. 1 train
+
+
+
+
+
+
+
+
+
 
 For inference, additional variables need to be set:
 - `MODEL_PATH` is your checkpoint to be evaluated.
@@ -36,6 +45,17 @@ To sample, run
 bash sample_ddbm.sh $DATASET_NAME $SCHEDULE_TYPE $MODEL_PATH $CHURN_STEP_RATIO $GUIDANCE $SPLIT
 ```
 This script will aggregate all samples into `.npz` file into your experiment folder ready for quantitative evaluation.
+
+
+
+
+
+
+
+
+
+
+
 
 
 # Evaluations
