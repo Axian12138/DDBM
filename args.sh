@@ -15,9 +15,10 @@ SAMPLER=real-uniform # real-uniform??
 
 # data
 NORMALIZE=False
-# DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
-RECYCLE_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_65.pkl'
-RETARGET_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/retarget_11112_amass_isaac_train_phc.pkl'
+RECYCLE_DATA_PATH='/home/ubuntu/data/PHC/recycle_65.pkl'
+# RECYCLE_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/recycle_65.pkl'
+RETARGET_DATA_PATH='/home/ubuntu/data/PHC/retarget_5000.pkl'
+# RETARGET_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/retarget_11112_amass_isaac_train_phc.pkl'
 # HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
 # HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_11113_amass_isaac_train_phc.pkl'
 ONLY_POSE=False

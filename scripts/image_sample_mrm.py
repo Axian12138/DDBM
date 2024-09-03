@@ -161,8 +161,8 @@ def main():
             for i in range(bs):
                 name = names[ids[i].item()]
                 motion_pkls[name] = {
-                    'jt': samples[i][:19].detach().cpu().numpy(),
-                    'global': samples[i][19:].detach().cpu().numpy(),
+                    'jt': samples[i][...,:19].detach().cpu().numpy(),
+                    'root': samples[i][...,19:].detach().cpu().numpy(),
                 }
                 # breakpoint()
                 # motion_pkls.append(motion_pkl)
