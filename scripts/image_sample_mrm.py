@@ -198,7 +198,7 @@ def main():
     plt.plot(x_error_mean.cpu().numpy())
     # saving
     if dist.get_rank() == 0:
-        plt.savefig(f"{sample_dir}/error.png")
+        plt.savefig(f"{sample_dir}/error_{x_error_mean.cpu().numpy()[-1]}.png")
 
     logger.log(f"denoised error: {denoised_error_mean}")
     logger.log(f"x error: {x_error_mean}")
@@ -206,8 +206,11 @@ def main():
         # shape_str = "x".join([str(x) for x in arr.shape])
         # out_path = os.path.join(sample_dir, f"samples_{shape_str}_nfe{nfe}.npz")
         import joblib
-        out_path=args.recycle_data_path.replace("recycle","denoise_jtroot")
-        # out_path=f"/cephfs_yili/shared/xuehan/H1_RL/{filename}"
+        # change the first word of args.recycle_data_path before _ to denoise_jtroot
+        # prefix = args.retarget_data_path.split("/")[-1].split("_")[0]
+        # out_path=args.retarget_data_path.replace(prefix,"denoise_jtroot")
+        out_file=f"denoise_jtroot_{len(motion_pkls)}_" + os.path.basename(args.retarget_data_path)
+        out_path=os.path.join(os.path.dirname(args.retarget_data_path), out_file)
         # out_path=f"/home/ubuntu/data/PHC/{filename}"
         logger.log(f"saving to {out_path}")
         joblib.dump(motion_pkls, out_path)

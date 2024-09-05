@@ -33,14 +33,17 @@ def main(args):
         args.exp += '_latent'
     else:
         args.exp += '_raw'
-    if args.load_pose:
-        args.exp += '_pose'
-    else:
-        args.exp += '_motion'
-    if args.normalize:
-        args.exp += '_norm'
-    else:
-        args.exp += '_no_norm'
+
+    # if args.load_pose:
+    #     args.exp += '_pose'
+    # else:
+    #     args.exp += '_motion'
+
+    # if args.normalize:
+    #     args.exp += '_norm'
+    # else:
+    #     args.exp += '_no_norm'
+
 
 
     workdir = get_workdir(args.exp)
@@ -103,6 +106,7 @@ def main(args):
         human_data_path=args.human_data_path,
         load_pose = args.load_pose,
         norm = args.normalize,
+        overlap=args.overlap,
     )
 
     logger.log("creating model and diffusion...")
@@ -196,6 +200,7 @@ def create_argparser():
         load_pose=False,
         normalize=False,
         vae_checkpoint=None,
+        overlap=False,
         # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )

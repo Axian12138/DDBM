@@ -20,4 +20,4 @@ CUDA_VISIBLE_DEVICES=1 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$
       --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER \
       ${CKPT:+ --resume_checkpoint="${CKPT}"}  ${DEBUG:+ --debug="${DEBUG}"} \
       --recycle_data_path $RECYCLE_DATA_PATH --retarget_data_path $RETARGET_DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} \
-      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE
+      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE --overlap=$OVERLAP

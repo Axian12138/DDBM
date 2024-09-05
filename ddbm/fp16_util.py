@@ -162,6 +162,7 @@ class MixedPrecisionTrainer:
         self.master_params = self.model_params
         self.param_groups_and_shapes = None
         self.lg_loss_scale = initial_lg_loss_scale
+        self.last_grad_norm = np.inf
 
         if self.use_fp16:
             self.param_groups_and_shapes = get_param_groups_and_shapes(
@@ -211,6 +212,11 @@ class MixedPrecisionTrainer:
         grad_norm, param_norm = self._compute_norms()
         logger.logkv_mean("grad_norm", grad_norm)
         logger.logkv_mean("param_norm", param_norm)
+        # nn.utils.clip_grad_norm_(self.master_params, 1.0) # NOTE(xh)
+        if self.last_grad_norm < grad_norm*0.5:
+            # breakpoint()
+            return False
+        self.last_grad_norm = grad_norm
         opt.step()
         return True
 

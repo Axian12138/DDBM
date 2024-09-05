@@ -241,7 +241,7 @@ class MotionDataset(torch.utils.data.Dataset):
     During test time, you need to prepare a directory '/path/to/data/test'.
     """
 
-    def __init__(self, recycle_data_path, retarget_data_path, train=True, human_data_path = None, load_pose = False, norm = False):
+    def __init__(self, recycle_data_path, retarget_data_path, train=True, human_data_path = None, load_pose = False, norm = False, overlap=False,):
         """Initialize this dataset class.
         Parameters:
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
@@ -260,6 +260,8 @@ class MotionDataset(torch.utils.data.Dataset):
         self.load_pose = load_pose
         h1_num_bodies = 22
         human_num_bodies = 24
+        self.window_size = 24
+        self.overlap = overlap
         # start_id = []
         # current_id = 0
         # for (name, data_A), data_B in zip(data_list_A.items(), data_list_B):
@@ -328,6 +330,7 @@ class MotionDataset(torch.utils.data.Dataset):
             self.root_A.append(retarget_root)
             self.root_B.append(torch.concat([recycle_global_pos, recycle_global_ori], dim=1))
             motion_length.append(retarget_jt.shape[0])
+            assert retarget_jt.shape[0] == recycle_jt.shape[0]
 
 
             
@@ -376,6 +379,10 @@ class MotionDataset(torch.utils.data.Dataset):
             B (tensor) - - its corresponding target motion
         """
         motion_length = self.motion_length[index]
+        while motion_length < self.window_size:
+            index += 1
+            index %= self.length
+            motion_length = self.motion_length[index]
         # jt_A = self.jt_A[self.start_id[index]:self.start_id[index]+motion_length]
         # jt_B = self.jt_B[self.start_id[index]:self.start_id[index]+motion_length]
         # root_A = self.root_A[self.start_id[index]:self.start_id[index]+motion_length]
@@ -388,22 +395,26 @@ class MotionDataset(torch.utils.data.Dataset):
             jt_root_C = self.jt_root_C[self.start_id[index]:self.start_id[index]+motion_length]
         if self.load_pose:
             # random choose a pose 
-            pose_id = torch.randint(jt_root_A.shape[0], (1,))
+            pose_id = torch.randint(motion_length, (1,))
             A = jt_root_A[pose_id]
             B = jt_root_B[pose_id]
             if self.load_human:
                 C = jt_root_C[pose_id]
         else:
-            zero_pad_A = torch.zeros((self.max_length-motion_length, jt_root_A.shape[-1])).to(jt_root_A)
-            zero_pad_B = torch.zeros((self.max_length-motion_length, jt_root_B.shape[-1])).to(jt_root_A)
-            A = torch.concat([jt_root_A, zero_pad_A], dim=0)
-            B = torch.concat([jt_root_B, zero_pad_B], dim=0)
-            A = A[:100]
-            B = B[:100]
+            pose_id = torch.randint(motion_length - self.window_size+1, (1,))
+            if self.overlap:
+                breakpoint()
+                pose_id = pose_id//(self.window_size-self.overlap) * (self.window_size-self.overlap)
+            # zero_pad_A = torch.zeros((self.max_length-motion_length, jt_root_A.shape[-1])).to(jt_root_A)
+            # zero_pad_B = torch.zeros((self.max_length-motion_length, jt_root_B.shape[-1])).to(jt_root_A)
+            # A = torch.concat([jt_root_A, zero_pad_A], dim=0)
+            # B = torch.concat([jt_root_B, zero_pad_B], dim=0)
+            A = jt_root_A[pose_id:pose_id+self.window_size]
+            B = jt_root_B[pose_id:pose_id+self.window_size]
             if self.load_human:
-                zero_pad_C = torch.zeros((self.max_length-motion_length, jt_root_C.shape[-1])).to(jt_root_A)
-                C = torch.concat([jt_root_C, zero_pad_C], dim=0)
-                C = C[:100]
+                # zero_pad_C = torch.zeros((self.max_length-motion_length, jt_root_C.shape[-1])).to(jt_root_A)
+                # C = torch.concat([jt_root_C, zero_pad_C], dim=0)
+                C = jt_root_C[pose_id:pose_id+self.window_size]
         if self.load_human:
             return B, A, C
         return B, A, index#self.names[index]

@@ -1,6 +1,6 @@
 # training
-BS=64
-MICRO=64
+BS=200
+MICRO=200
 NGPU=1
 SAVE_ITER=1000
 
@@ -17,10 +17,11 @@ SAMPLER=real-uniform # real-uniform??
 NORMALIZE=False
 # DATA_PATH='/home/ubuntu/data/PHC/recycle_259.pkl'
 RECYCLE_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/tracked_64_0.5_0831_11112retar_tarinit_retarget_64_amass_train_13912.pkl'
-RETARGET_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/retarget_13911_amass_train_13912.pkl'
+RETARGET_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/retarget_64_amass_train_13912.pkl'
 # HUMAN_DATA_PATH='/home/ubuntu/data/PHC/human_translation_6761_amass_isaac_train_0.pkl'
 # HUMAN_DATA_PATH='/cephfs_yili/shared/xuehan/H1_RL/human_11113_amass_isaac_train_phc.pkl'
 ONLY_POSE=False
+OVERLAP=0
 
 # network
 # ARCH='trans_enc' # 'debug'
@@ -35,7 +36,7 @@ NUM_RES_BLOCKS=3
 
 # extra
 DATASET_NAME=$1
-EXP="${DATASET_NAME}_${ARCH}_${NUM_CH}d"
+EXP="${DATASET_NAME}_${ARCH}_${NUM_CH}d_${OVERLAP}o"
     
 if  [[ $PRED == "ve" ]]; then
     EXP+="_ve"

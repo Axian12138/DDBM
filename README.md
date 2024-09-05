@@ -24,7 +24,7 @@ bash train_ddbm.sh test ve
 
 
 
-bash sample_ddbm.sh none ve_simple ./workdir/0903_64motion_trans_enc_256d_ve_simple_1S_raw_motion_no_norm/model_050000.pt 0. 1 train
+bash sample_ddbm.sh none ve_simple ./workdir/0903_64motion_trans_enc_256d_vp_simple_1S_raw_motion_no_norm/model_050000.pt 0. 1 train
 
 
 

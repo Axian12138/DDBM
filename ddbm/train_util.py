@@ -321,8 +321,10 @@ class TrainLoop:
 
             loss = (losses["loss"] * weights).mean()
             # breakpoint()
+            logger.logkv_mean('weights', weights.mean().item())
             log_loss_dict(
-                self.diffusion, t, {k if train else 'test_'+k: v * weights if 'loss' in k else v for k, v in losses.items()}
+                self.diffusion, t, {k if train else 'test_'+k: v for k, v in losses.items()}
+                # self.diffusion, t, {k if train else 'test_'+k: v * weights if 'loss' in k else v for k, v in losses.items()}
             )
             if train:
                 self.mp_trainer.backward(loss)
