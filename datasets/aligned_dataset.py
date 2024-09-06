@@ -241,7 +241,7 @@ class MotionDataset(torch.utils.data.Dataset):
     During test time, you need to prepare a directory '/path/to/data/test'.
     """
 
-    def __init__(self, recycle_data_path, retarget_data_path, train=True, human_data_path = None, load_pose = False, norm = False, overlap=False,):
+    def __init__(self, recycle_data_path, retarget_data_path, train=True, human_data_path = None, load_pose = False, norm = False, overlap=-1,):
         """Initialize this dataset class.
         Parameters:
             opt (Option class) -- stores all the experiment flags; needs to be a subclass of BaseOptions
@@ -402,7 +402,7 @@ class MotionDataset(torch.utils.data.Dataset):
                 C = jt_root_C[pose_id]
         else:
             pose_id = torch.randint(motion_length - self.window_size+1, (1,))
-            if self.overlap:
+            if self.overlap >= 0:
                 breakpoint()
                 pose_id = pose_id//(self.window_size-self.overlap) * (self.window_size-self.overlap)
             # zero_pad_A = torch.zeros((self.max_length-motion_length, jt_root_A.shape[-1])).to(jt_root_A)
