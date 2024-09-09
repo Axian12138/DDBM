@@ -18,13 +18,13 @@ Simply set variables `DATASET_NAME` and `SCHEDULE_TYPE`:
 
 
 
-bash train_ddbm.sh test ve
+bash train_ddbm.sh 0908_5 ve_simple False /home/xuehan/DDBM/workdir/0904_5_trans_enc_256d_ve_simple_1S_raw_motion_no_norm/model_687000.pt
 
 
 
 
 
-bash sample_ddbm.sh none ve_simple ./workdir/0903_64motion_trans_enc_256d_vp_simple_1S_raw_motion_no_norm/model_050000.pt 0. 1 train
+bash sample_ddbm.sh bar32 ve_simple /home/xuehan/DDBM/workdir/0904_32_trans_enc_256d_ve_simple_1S_raw_motion_no_norm/model_288000.pt 0. 1 train
 
 
 

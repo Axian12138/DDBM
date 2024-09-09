@@ -16,7 +16,7 @@ GEN_SAMPLER=heun
 BS=1
 NGPU=1
 
-CUDA_VISIBLE_DEVICES=0 mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
+CUDA_VISIBLE_DEVICES=3 mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
     --batch_size $BS --churn_step_ratio $CHURN_STEP_RATIO --steps $N --sampler $GEN_SAMPLER \
     --model_path $MODEL_PATH --attention_resolutions $ATTN  --class_cond False --pred_mode $PRED \
     ${BETA_D:+ --beta_d="${BETA_D}"} ${BETA_MIN:+ --beta_min="${BETA_MIN}"}  \
@@ -27,6 +27,7 @@ CUDA_VISIBLE_DEVICES=0 mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp
     --rho 7 --upscale=False ${CH_MULT:+ --channel_mult="${CH_MULT}"} \
     ${UNET:+ --unet_type="${UNET}"} ${SPLIT:+ --split="${SPLIT}"} ${GUIDANCE:+ --guidance="${GUIDANCE}"} \
       --recycle_data_path $RECYCLE_DATA_PATH --retarget_data_path $RETARGET_DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} \
-      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE
+      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE \
+      --overlap=$OVERLAP --window_size=$WINDOW_SIZE
  
 

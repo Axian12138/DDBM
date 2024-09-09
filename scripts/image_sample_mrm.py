@@ -20,7 +20,7 @@ from ddbm.script_util import (
     args_to_dict,
 )
 from ddbm.random_util import get_generator
-from ddbm.karras_diffusion import karras_sample, forward_sample
+from ddbm.karras_diffusion import karras_sample, karras_sample_overlap, forward_sample
 
 from datasets import load_data_motion
 
@@ -30,6 +30,24 @@ from PIL import Image
 # def get_workdir(exp):
 #     workdir = f'./workdir/{exp}'
 #     return workdir
+
+def split_into_windows(length, window_size, overlap_size):
+    assert window_size > overlap_size
+    assert length >= window_size
+    overlap = []
+    start = 0
+    end = 0
+    # for i in range(0, length - overlap, window_size - overlap):
+    #     start = min(i, length - window_size)
+    #     windows.append((start, end))
+    #     end = start + window_size
+    while end < (length - window_size):
+        overlap.append((start, end))
+        end = start + window_size
+        start += window_size - overlap_size
+    assert overlap[-1][-1] <= length - window_size
+    overlap.append((length - window_size, end))
+    return overlap
 
 def main():
     args = create_argparser().parse_args()
@@ -80,18 +98,21 @@ def main():
         # data_path_B=args.data_path_B,
         deterministic = True,
         batch_size=args.batch_size,
+        include_test = True,
         num_workers=args.num_workers,
         seed=args.seed,
         human_data_path=args.human_data_path,
         load_pose = args.load_pose,
         norm = args.normalize,
+        overlap=args.overlap,
+        # window_size=args.window_size,
     )
-    if args.split =='train':
-        dataloader = all_dataloaders[1]
-    elif args.split == 'test':
-        dataloader = all_dataloaders[2]
-    else:
-        raise NotImplementedError
+    # if args.split =='train':
+    dataloader = all_dataloaders[1]
+    # elif args.split == 'test':
+    #     dataloader = all_dataloaders[2]
+    # else:
+    #     raise NotImplementedError
     args.num_samples = len(dataloader.dataset)
     names = dataloader.dataset.names
 
@@ -112,11 +133,11 @@ def main():
         index = data[2].to(dist_util.dev())
 
         bs = x0.shape[0]
+        length, window_size, overlap = x0.shape[1], args.window_size, args.overlap
+        overlap_pairs = split_into_windows(length, window_size, overlap)
         # breakpoint()
-            
-            
-                
-        sample, path, nfe, denoised_error, x_error = karras_sample(
+         
+        sample, path, nfe, denoised_error, x_error = karras_sample_overlap(
             diffusion,
             model,
             y0,
@@ -130,8 +151,41 @@ def main():
             sigma_max=diffusion.sigma_max,
             churn_step_ratio=args.churn_step_ratio,
             rho=args.rho,
-            guidance=args.guidance
-        )
+            guidance=args.guidance,
+            x_overlap=overlap_pairs,
+        )  
+
+
+        # sample, denoised_error, x_error = [], [], []
+        # for start_i, overlap_i in overlap_pairs:
+        #     if start_i < overlap_i:
+        #         x_overlap = sample_last[:, start_i-overlap_i:]
+        #     else:
+        #         x_overlap = None
+        #     sample_last, _, _, denoised_error_last, x_error_last = karras_sample_overlap(
+        #         diffusion,
+        #         model,
+        #         y0[:,start_i:start_i+window_size],
+        #         x0[:,start_i:start_i+window_size],
+        #         steps=args.steps,
+        #         model_kwargs=model_kwargs,
+        #         device=dist_util.dev(),
+        #         # clip_denoised=args.clip_denoised,
+        #         sampler=args.sampler,
+        #         sigma_min=diffusion.sigma_min,
+        #         sigma_max=diffusion.sigma_max,
+        #         churn_step_ratio=args.churn_step_ratio,
+        #         rho=args.rho,
+        #         guidance=args.guidance,
+        #         x_overlap=x_overlap,
+        #     )   
+        #     sample.append(sample_last[:,overlap_i-start_i:window_size])
+        #     denoised_error.extend(denoised_error_last)
+        #     x_error.extend(x_error_last)
+        # sample = th.cat(sample,dim=1)
+        
+
+
         
         denoised_error_all.append(th.cat(denoised_error))
         x_error_all.append(th.cat(x_error))
@@ -209,10 +263,11 @@ def main():
         # change the first word of args.recycle_data_path before _ to denoise_jtroot
         # prefix = args.retarget_data_path.split("/")[-1].split("_")[0]
         # out_path=args.retarget_data_path.replace(prefix,"denoise_jtroot")
-        out_file=f"denoise_jtroot_{len(motion_pkls)}_" + os.path.basename(args.retarget_data_path)
+        out_file=f"denoise_jtroot_{len(motion_pkls)}_{args.exp[:5]}_s{step}_" + os.path.basename(args.retarget_data_path)
         out_path=os.path.join(os.path.dirname(args.retarget_data_path), out_file)
         # out_path=f"/home/ubuntu/data/PHC/{filename}"
         logger.log(f"saving to {out_path}")
+        breakpoint()
         joblib.dump(motion_pkls, out_path)
         # np.savez(out_path, arr)
 
@@ -246,6 +301,8 @@ def create_argparser():
         load_pose=False,
         normalize=False,
         vae_checkpoint=None,
+        overlap=-1,
+        window_size=1,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

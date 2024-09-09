@@ -282,7 +282,7 @@ def load_data_motion(
     from .aligned_dataset import MotionDataset
     trainset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=overlap)
 
-    valset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=-1,)
+    valset = MotionDataset(recycle_data_path, retarget_data_path, train=not include_test,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=-1,)
     if include_test:
         # testset = MotionDataset(dataroot=root, train=False)
         ...
@@ -307,17 +307,17 @@ def load_data_motion(
         valset, batch_size=batch_size,
         sampler=sampler, num_workers=num_workers,  drop_last=False)
     
-    if include_test:
+    # if include_test:
         
-        num_tasks = dist.get_world_size()
-        global_rank = dist.get_rank()
-        sampler = torch.utils.data.DistributedSampler(
-                testset, num_replicas=num_tasks, rank=global_rank, shuffle=False, drop_last=False
-            )
-        test_loader = torch.utils.data.DataLoader(
-        testset, batch_size=batch_size,
-        sampler=sampler, num_workers=num_workers,  shuffle=False,drop_last=False)
+    #     num_tasks = dist.get_world_size()
+    #     global_rank = dist.get_rank()
+    #     sampler = torch.utils.data.DistributedSampler(
+    #             testset, num_replicas=num_tasks, rank=global_rank, shuffle=False, drop_last=False
+    #         )
+    #     test_loader = torch.utils.data.DataLoader(
+    #     testset, batch_size=batch_size,
+    #     sampler=sampler, num_workers=num_workers,  shuffle=False,drop_last=False)
         
-        return loader, val_loader, test_loader
-    else:
-        return loader, val_loader, trainset.cov_xy
+    #     return loader, val_loader, test_loader
+    # else:
+    return loader, val_loader, trainset.cov_xy

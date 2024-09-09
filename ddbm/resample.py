@@ -4,6 +4,7 @@ import numpy as np
 import torch as th
 from scipy.stats import norm
 import torch.distributed as dist
+# from karras_diffusion import get_sigmas_karras
 
 
 def create_named_schedule_sampler(name, diffusion):
