@@ -34,6 +34,8 @@ from PIL import Image
 def split_into_windows(length, window_size, overlap_size):
     assert window_size > overlap_size
     assert length >= window_size
+    if length == window_size:
+        return [(0, 0)]
     overlap = []
     start = 0
     end = 0
@@ -45,7 +47,7 @@ def split_into_windows(length, window_size, overlap_size):
         overlap.append((start, end))
         end = start + window_size
         start += window_size - overlap_size
-    assert overlap[-1][-1] <= length - window_size
+    assert overlap[-1][-1] <= (length - window_size)
     overlap.append((length - window_size, end))
     return overlap
 
@@ -263,11 +265,11 @@ def main():
         # change the first word of args.recycle_data_path before _ to denoise_jtroot
         # prefix = args.retarget_data_path.split("/")[-1].split("_")[0]
         # out_path=args.retarget_data_path.replace(prefix,"denoise_jtroot")
-        out_file=f"denoise_jtroot_{len(motion_pkls)}_{args.exp[:5]}_s{step}_" + os.path.basename(args.retarget_data_path)
+        out_file=f"denoise_jtroot_{len(motion_pkls)}_{args.exp[:5]}_o{args.overlap}_s{step}_" + os.path.basename(args.retarget_data_path)
         out_path=os.path.join(os.path.dirname(args.retarget_data_path), out_file)
         # out_path=f"/home/ubuntu/data/PHC/{filename}"
         logger.log(f"saving to {out_path}")
-        breakpoint()
+        # breakpoint()
         joblib.dump(motion_pkls, out_path)
         # np.savez(out_path, arr)
 

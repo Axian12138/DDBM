@@ -386,13 +386,13 @@ class TrainLoop:
             ) as f:
                 th.save(self.opt.state_dict(), f)
         # rm all file under logdir that end with {step}.pt, if step != self.step and step % 10000 !=0
-        import re
-        for filename in os.listdir(get_blob_logdir()):
-            match = re.search(r'_(\d+)\.pt$', filename)
-            if match:
-                step = int(match.group(1))
-                if step != self.step and step % 50000 != 0:
-                    os.remove(os.path.join(get_blob_logdir(), filename))
+            import re
+            for filename in os.listdir(get_blob_logdir()):
+                match = re.search(r'_(\d+)\.pt$', filename)
+                if match:
+                    step = int(match.group(1))
+                    if step != self.step and step % 50000 != 0:
+                        os.remove(os.path.join(get_blob_logdir(), filename))
 
         # Save model parameters last to prevent race conditions where a restart
         # loads model at step N, but opt/ema state isn't saved for step N.
