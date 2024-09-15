@@ -24,7 +24,7 @@ bash train_ddbm.sh 0909_25_ae ve_simple False /home/xuehan/DDBM/workdir/0904_25_
 
 
 
-bash sample_ddbm.sh 25 ve_simple /cephfs_yili/shared/xuehan/DDBM/workdir/0909_25_trans_enc_256d_-1o_ve_simple_1S_raw/model_1000000.pt 0. 1 train
+bash sample_ddbm.sh 15t21 ve_simple /home/xuehan/DDBM/workdir/0908_15_trans_enc_256d_-1o_ve_simple_1S_raw/ema_0.9999_3750000.pt 0. 1 train
 
 
 

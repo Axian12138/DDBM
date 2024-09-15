@@ -182,7 +182,7 @@ def get_model_args_mrm(args):
     # default args
     # clip_version = 'ViT-B/32'
     action_emb = 'tensor'
-    cond_mode = 'none'
+    cond_mode = args.condition_mode
     # if hasattr(data.dataset, 'num_actions'):
     #     num_actions = data.dataset.num_actions
     # else:

@@ -54,6 +54,9 @@ class MRM(nn.Module):
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
         if not use_latent:
             self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+        if self.cond_mode == 'concat':
+            self.cond_process = InputProcess(self.data_rep, 5*3+6, 5*3+6)
+
         #     self.enc_A = identity
         #     self.enc_B = identity
         # else:
@@ -118,8 +121,10 @@ class MRM(nn.Module):
                 print('EMBED SMPL')
 
         if not use_latent:
-            self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints,
-                                            self.nfeats)
+            if self.cond_mode == 'concat':
+                self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim + 5*3+6, self.njoints)
+            else:
+                self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints)
         #     self.dec_A = identity
         #     self.dec_B = identity
         # else:
@@ -130,6 +135,22 @@ class MRM(nn.Module):
                                                 # self.nfeats)
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
+        import pytorch_kinematics as pk
+        self.chain = pk.build_chain_from_urdf(open("./h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
+        # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
+    def rot2xyz(self, root, jt):
+        
+        ret = self.chain.forward_kinematics(jt)
+        # look up the transform for a specific link
+        left_hand_link = ret['left_hand_link']
+        left_hand_tg = left_hand_link.get_matrix()[:,:3,3]
+        right_hand_link = ret['right_hand_link']
+        right_hand_tg = right_hand_link.get_matrix()[:,:3,3]
+        left_ankle_link = ret['left_ankle_link']
+        left_ankle_tg = left_ankle_link.get_matrix()[:,:3,3]
+        right_ankle_link = ret['right_ankle_link']
+        right_ankle_tg = right_ankle_link.get_matrix()[:,:3,3]
+        # get transform matrix (1,4,4), then convert to separate position and unit quaternion
     def parameters_wo_clip(self):
         return [p for name, p in self.named_parameters() if not name.startswith('clip_model.')]
 
@@ -145,7 +166,7 @@ class MRM(nn.Module):
             return cond
 
 
-    def forward_bk(self, x, timesteps, y=None, xT=None):
+    def forward_v0(self, x, timesteps, y=None, xT=None):
         """
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
@@ -204,7 +225,7 @@ class MRM(nn.Module):
         return output
     
 
-    def forward(self, x, timesteps, xT=None):
+    def forward_v1(self, x, timesteps, xT=None):
         """
         x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
         timesteps: [batch_size] (int)
@@ -260,6 +281,66 @@ class MRM(nn.Module):
 
         return output
 
+
+    def forward(self, x, timesteps, xT=None, cond=None):
+        """
+        x: [batch_size, njoints, nfeats, max_frames], denoted x_t in the paper
+        timesteps: [batch_size] (int)
+        """
+        # bs, nframes, njoints  = x.shape
+        if not self.debug:
+            emb = self.embed_timestep(timestep_embedding(timesteps, self.model_channels)).unsqueeze(0)
+
+        # breakpoint()
+        x = x.type(self.dtype)
+        if not self.use_latent:
+            x = self.input_process(x)
+        x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+        xT = xT.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+            # xT = self.input_process(xT)
+        if self.cond_mode == 'concat':
+            cond = self.cond_process(cond)
+            cond = cond.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+            x= torch.cat((x, cond), axis=2)
+        # if xT is not None:
+        #     xT = xT.type(self.dtype)
+        #     xT = self.input_process(xT)
+        # else:
+
+        if self.arch == 'trans_enc':
+            # adding the timestep embed
+            xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            x = self.seqTransEncoder(xseq)[1:]  # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+
+        elif self.arch == 'trans_dec':
+            if self.emb_trans_dec:
+                xseq = torch.cat((emb, x), axis=0)
+            else:
+                xseq = x
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            if self.emb_trans_dec:
+                x = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
+            else:
+                x = self.seqTransDecoder(tgt=xseq, memory=emb)
+        
+        elif self.arch == 'trans':
+
+            xTseq = torch.cat((emb, xT), axis=0)  # [seqlen+1, bs, d]
+            xTseq = self.sequence_pos_encoder(xTseq)  # [seqlen+1, bs, d]
+
+
+            xseq = torch.cat((emb, x), axis=0)  # [seqlen+1, bs, d]
+            xseq = self.sequence_pos_encoder(xseq)  # [seqlen+1, bs, d]
+            xseq = self.seqTransEncoder(xseq) # , src_key_padding_mask=~maskseq)  # [seqlen, bs, d]
+            x = self.seqTransDecoder(tgt=xTseq, memory=xseq)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
+        
+        if not self.use_latent:
+            x = self.output_process(x)  # [bs, njoints, nfeats, nframes]
+        # else:
+        output = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+
+        return output
 
 class ContrastiveModel(nn.Module):
     def __init__(self, modeltype, njoints, nfeats, translation, pose_rep, glob, glob_rot,
@@ -475,7 +556,7 @@ class InputProcess(nn.Module):
 
 
 class OutputProcess(nn.Module):
-    def __init__(self, data_rep, input_feats, latent_dim, njoints, nfeats):
+    def __init__(self, data_rep, input_feats, latent_dim, njoints, nfeats=1):
         super().__init__()
         self.data_rep = data_rep
         self.input_feats = input_feats

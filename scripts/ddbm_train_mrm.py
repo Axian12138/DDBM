@@ -29,10 +29,10 @@ import os
 from datasets.augment import AugmentPipe
 def main(args):
 
-    if args.human_data_path is not None:
-        args.exp += '_latent'
-    else:
-        args.exp += '_raw'
+    # if args.human_data_path is not None:
+    #     args.exp += '_latent'
+    # else:
+    #     args.exp += '_raw'
 
     # if args.load_pose:
     #     args.exp += '_pose'
@@ -107,6 +107,8 @@ def main(args):
         load_pose = args.load_pose,
         norm = args.normalize,
         overlap=args.overlap,
+        window_size=args.window_size,
+        mixed_data=args.mixed_data,
     )
 
     logger.log("creating model and diffusion...")
@@ -167,6 +169,7 @@ def main(args):
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
         augment_pipe=augment,
+        mixed_data=args.mixed_data,
         **sample_defaults()
     ).run_loop()
 
@@ -201,6 +204,8 @@ def create_argparser():
         normalize=False,
         vae_checkpoint=None,
         overlap=-1,
+        window_size=24,
+        mixed_data=False,
         # data_path='/cephfs_yili/shared/xuehan/H1_RL/recycle_8554.pkl',
         # data_path_B='/home/ubuntu/data/PHC/recycle_data_500.pkl',
     )

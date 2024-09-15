@@ -61,6 +61,7 @@ class TrainLoop:
         lr_anneal_steps=0,
         total_training_steps=10000000,
         augment_pipe=None,
+        mixed_data=False,
         **sample_kwargs,
     ):
         self.model = model
@@ -144,6 +145,7 @@ class TrainLoop:
         self.sample_kwargs = sample_kwargs
 
         self.augment = augment_pipe
+        self.mixed_data = mixed_data
     
 
     def _load_and_sync_parameters(self):
@@ -213,7 +215,9 @@ class TrainLoop:
                         self.save()
                     return
                 # scale to [-1, 1]
-                
+                # return True with 1/3 possibility
+                # if self.mixed_data and th.rand() < 0.33:
+                #     x0 = xT
                 x0 = self.preprocess(x0)
                     
                 if self.augment is not None:

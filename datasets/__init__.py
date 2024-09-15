@@ -274,15 +274,17 @@ def load_data_motion(
     load_pose=False,
     norm=True,
     overlap=-1,
+    window_size=24,
+    mixed_data=False,
 ):
   # Compute batch size for this worker.
     # root = data_dir
   
 
     from .aligned_dataset import MotionDataset
-    trainset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=overlap)
+    trainset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=overlap,window_size=window_size,mixed_data=mixed_data)
 
-    valset = MotionDataset(recycle_data_path, retarget_data_path, train=not include_test,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=-1,)
+    valset = MotionDataset(recycle_data_path, retarget_data_path, train=not include_test,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=-1,window_size=window_size,)
     if include_test:
         # testset = MotionDataset(dataroot=root, train=False)
         ...

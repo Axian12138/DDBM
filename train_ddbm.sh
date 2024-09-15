@@ -6,7 +6,7 @@ CKPT=$4
 
 source ./args.sh $DATASET_NAME $PRED
 
-NGPU=3
+NGPU=1
 FREQ_SAVE_ITER=50000
 CUDA_VISIBLE_DEVICES=3,4,5 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --exp=$EXP \
  --attention_resolutions $ATTN --class_cond False --use_scale_shift_norm True \
@@ -21,4 +21,4 @@ CUDA_VISIBLE_DEVICES=3,4,5 mpiexec -n $NGPU python scripts/ddbm_train_mrm.py --e
       --save_interval_for_preemption=$FREQ_SAVE_ITER --save_interval=$SAVE_ITER \
       ${CKPT:+ --resume_checkpoint="${CKPT}"}  ${DEBUG:+ --debug="${DEBUG}"} \
       --recycle_data_path $RECYCLE_DATA_PATH --retarget_data_path $RETARGET_DATA_PATH ${HUMAN_DATA_PATH:+ --human_data_path="${HUMAN_DATA_PATH}"} \
-      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE --overlap=$OVERLAP
+      --load_pose=$ONLY_POSE --arch=$ARCH --normalize=$NORMALIZE --overlap=$OVERLAP --window_size=$WINDOW_SIZE --mixed_data=$MIXED_DATA
