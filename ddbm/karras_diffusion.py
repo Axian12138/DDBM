@@ -217,7 +217,7 @@ class KarrasDenoiser:
 
         terms["loss"] = 0
         # if train_diffusion:
-        model_output, denoised = self.denoise(model, x_t, sigmas,  model_kwargs['xT'])
+        model_output, denoised = self.denoise(model, x_t, sigmas,  model_kwargs)
         if self.vae is not None:
             x0_denoised = self.vae.dec_B(denoised)
         else:
@@ -240,7 +240,7 @@ class KarrasDenoiser:
     
 
 
-    def denoise(self, model, x_t, sigmas ,xT):
+    def denoise(self, model, x_t, sigmas ,model_kwargs):
         # breakpoint()
         c_skip, c_out, c_in = [ # BUG!!!!!!!!! check the shape
             append_dims(x, x_t.ndim) for x in self.get_bridge_scalings(sigmas)
@@ -250,7 +250,7 @@ class KarrasDenoiser:
         # rescaled_t = 1000 * 0.25 * th.log(sigmas + 1e-44)
         norm_sigmas = (sigmas - self.sigma_min) / (self.sigma_max - self.sigma_min)
         # norm_sigmas = sigmas
-        model_output = model(c_in * x_t, norm_sigmas, xT)
+        model_output = model(c_in * x_t, norm_sigmas, **model_kwargs)
         denoised = c_out * model_output + c_skip * x_t
         # breakpoint()
         return model_output, denoised

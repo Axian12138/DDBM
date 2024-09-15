@@ -236,7 +236,6 @@ class TrainLoop:
                     logs = logger.dumpkvs()
 
                     if dist.get_rank() == 0:
-                        # breakpoint()
                         wandb.log(logs, step=self.step)
                         
                 if took_step and self.step % self.save_interval == 0:

@@ -49,14 +49,17 @@ class MRM(nn.Module):
         self.normalize_output = kargs.get('normalize_encoder_output', False)
 
         self.cond_mode = kargs.get('cond_mode', 'no_cond')
+        self.cond_feats = 5*3+2 if self.cond_mode == 'concat' else 0
+
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
         if not use_latent:
-            self.input_process = InputProcess(self.data_rep, self.input_feats+self.gru_emb_dim, self.latent_dim)
+            self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim - self.cond_feats)
         if self.cond_mode == 'concat':
-            self.cond_process = InputProcess(self.data_rep, 5*3+6, 5*3+6)
-
+            self.cond_process = InputProcess(self.data_rep, self.cond_feats, self.cond_feats)
+            # self.latent_dim += self.cond_feats
+            # breakpoint()
         #     self.enc_A = identity
         #     self.enc_B = identity
         # else:
@@ -121,10 +124,10 @@ class MRM(nn.Module):
                 print('EMBED SMPL')
 
         if not use_latent:
-            if self.cond_mode == 'concat':
-                self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim + 5*3+6, self.njoints)
-            else:
-                self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints)
+            # if self.cond_mode == 'concat':
+            self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints)
+            # else:
+            #     self.output_process = OutputProcess(self.data_rep, self.input_feats, self.latent_dim, self.njoints)
         #     self.dec_A = identity
         #     self.dec_B = identity
         # else:
@@ -136,7 +139,7 @@ class MRM(nn.Module):
         # self.rot2xyz = Rotation2xyz(device='cpu', dataset=self.dataset)
 
         import pytorch_kinematics as pk
-        self.chain = pk.build_chain_from_urdf(open("./h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
+        self.chain = pk.build_chain_from_urdf(open("./ddbm/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
         # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
     def rot2xyz(self, root, jt):
         
@@ -288,6 +291,7 @@ class MRM(nn.Module):
         timesteps: [batch_size] (int)
         """
         # bs, nframes, njoints  = x.shape
+
         if not self.debug:
             emb = self.embed_timestep(timestep_embedding(timesteps, self.model_channels)).unsqueeze(0)
 
@@ -296,7 +300,7 @@ class MRM(nn.Module):
         if not self.use_latent:
             x = self.input_process(x)
         x = x.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
-        xT = xT.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
+        # xT = xT.permute((1, 0, 2))#.reshape(nframes, bs, njoints)
             # xT = self.input_process(xT)
         if self.cond_mode == 'concat':
             cond = self.cond_process(cond)

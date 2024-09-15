@@ -331,7 +331,7 @@ class MotionDataset(torch.utils.data.Dataset):
         self.cond_test = human_data_path is not None and not self.train
         if self.cond_train:
             import pytorch_kinematics as pk
-            self.chain = pk.build_chain_from_urdf(open("./h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
+            self.chain = pk.build_chain_from_urdf(open("./ddbm/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
                 # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
             # def rot2xyz(self, root, jt):
                 
@@ -374,6 +374,7 @@ class MotionDataset(torch.utils.data.Dataset):
                 self.jt_C.append(human_jt)
                 self.root_C.append(human_root)
             elif self.cond_train:
+                # breakpoint()
                 ret = self.chain.forward_kinematics(recycle_jt)
                 left_hand_link = ret['left_hand_link']
                 left_hand_tg = left_hand_link.get_matrix()[:,:3,3]
@@ -383,11 +384,26 @@ class MotionDataset(torch.utils.data.Dataset):
                 left_ankle_tg = left_ankle_link.get_matrix()[:,:3,3]
                 right_ankle_link = ret['right_ankle_link']
                 right_ankle_tg = right_ankle_link.get_matrix()[:,:3,3]
-                cond_jt = torch.concat([left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg], dim=1)
-                cond_root = calc_heading_quat(recycle_global_ori)
+                # pelvis_link = ret['left_knee_link']
+                # pelvis_tg = pelvis_link.get_matrix()[:,:3,3]
+                root_quat = vec6d_to_quat(recycle_global_ori.reshape(-1,3,2))
+                left_hand_global = quat_apply(root_quat, left_hand_tg) + recycle_global_pos
+                right_hand_global = quat_apply(root_quat, right_hand_tg) + recycle_global_pos
+                left_ankle_global = quat_apply(root_quat, left_ankle_tg) + recycle_global_pos
+                right_ankle_global = quat_apply(root_quat, right_ankle_tg) + recycle_global_pos
+
+                mean_pos_global =  (left_hand_global + right_hand_global + left_ankle_global + right_ankle_global)/4
+                heading_quat_inv = calc_heading_quat_inv(root_quat)
+
+                left_hand_tg = quat_apply(heading_quat_inv, left_hand_global - mean_pos_global)
+                right_hand_tg = quat_apply(heading_quat_inv, right_hand_global - mean_pos_global)
+                left_ankle_tg = quat_apply(heading_quat_inv, left_ankle_global - mean_pos_global)
+                right_ankle_tg = quat_apply(heading_quat_inv, right_ankle_global - mean_pos_global)
+
+                cond_jt = torch.concat([left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg, mean_pos_global], dim=1)
+                cond_root = calc_heading_quat(root_quat)[...,2:]
                 self.jt_C.append(cond_jt)
                 self.root_C.append(cond_root)
-                # breakpoint()
 
 
             self.jt_A.append(retarget_jt)
