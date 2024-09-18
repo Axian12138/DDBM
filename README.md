@@ -28,7 +28,8 @@ bash sample_ddbm.sh 15t21 ve_simple /home/xuehan/DDBM/workdir/0908_15_trans_enc_
 
 
 
-
+conda activate PriorMDM
+cd DDBM
 
 
 

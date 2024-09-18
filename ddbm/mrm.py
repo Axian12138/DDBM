@@ -50,14 +50,15 @@ class MRM(nn.Module):
 
         self.cond_mode = kargs.get('cond_mode', 'no_cond')
         self.cond_feats = 5*3+2 if self.cond_mode == 'concat' else 0
+        self.cond_dim = 128
 
         self.cond_mask_prob = kargs.get('cond_mask_prob', 0.)
         self.arch = arch
         self.gru_emb_dim = self.latent_dim if self.arch == 'gru' else 0
         if not use_latent:
-            self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim - self.cond_feats)
+            self.input_process = InputProcess(self.data_rep, self.input_feats, self.latent_dim - self.cond_dim)
         if self.cond_mode == 'concat':
-            self.cond_process = InputProcess(self.data_rep, self.cond_feats, self.cond_feats)
+            self.cond_process = InputProcess(self.data_rep, self.cond_feats, self.cond_dim)
             # self.latent_dim += self.cond_feats
             # breakpoint()
         #     self.enc_A = identity
