@@ -276,6 +276,29 @@ class MotionDataset_v0(torch.utils.data.Dataset):
         return self.length
 
 
+def get_cond(global_pos_offset, root_quat, left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg):
+    if global_pos_offset is None:
+        left_hand_global=left_hand_tg
+        right_hand_global=right_hand_tg
+        left_ankle_global=left_ankle_tg
+        right_ankle_global=right_ankle_tg
+    else:
+        left_hand_global = quat_apply(root_quat, left_hand_tg) + global_pos_offset
+        right_hand_global = quat_apply(root_quat, right_hand_tg) + global_pos_offset
+        left_ankle_global = quat_apply(root_quat, left_ankle_tg) + global_pos_offset
+        right_ankle_global = quat_apply(root_quat, right_ankle_tg) + global_pos_offset
+
+    mean_pos_global =  (left_hand_global + right_hand_global + left_ankle_global + right_ankle_global)/4
+    heading_quat_inv = calc_heading_quat_inv(root_quat)
+
+    left_hand_tg = quat_apply(heading_quat_inv, left_hand_global - mean_pos_global)
+    right_hand_tg = quat_apply(heading_quat_inv, right_hand_global - mean_pos_global)
+    left_ankle_tg = quat_apply(heading_quat_inv, left_ankle_global - mean_pos_global)
+    right_ankle_tg = quat_apply(heading_quat_inv, right_ankle_global - mean_pos_global)
+
+    cond_jt = torch.concat([left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg, mean_pos_global], dim=1)
+    cond_root = calc_heading_quat(root_quat)[...,2:]
+    return cond_jt, cond_root
 
 class MotionDataset(torch.utils.data.Dataset):
     """A dataset class for paired image dataset.
@@ -303,7 +326,7 @@ class MotionDataset(torch.utils.data.Dataset):
         h1_num_bodies = 22
         human_num_bodies = 24
         self.window_size = window_size
-        self.overlap = overlap
+        # self.overlap = overlap
         self.mixed_data = mixed_data
         self.train=train
         # start_id = []
@@ -332,26 +355,15 @@ class MotionDataset(torch.utils.data.Dataset):
         if self.cond_train:
             import pytorch_kinematics as pk
             self.chain = pk.build_chain_from_urdf(open("./ddbm/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
-                # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
-            # def rot2xyz(self, root, jt):
-                
-            #     ret = self.chain.forward_kinematics(jt)
-            #     # look up the transform for a specific link
-            #     left_hand_link = ret['left_hand_link']
-            #     left_hand_tg = left_hand_link.get_matrix()[:,:3,3]
-            #     right_hand_link = ret['right_hand_link']
-            #     right_hand_tg = right_hand_link.get_matrix()[:,:3,3]
-            #     left_ankle_link = ret['left_ankle_link']
-            #     left_ankle_tg = left_ankle_link.get_matrix()[:,:3,3]
-            #     right_ankle_link = ret['right_ankle_link']
-            #     right_ankle_tg = right_ankle_link.get_matrix()[:,:3,3]
+
+        names_50 = joblib.load('/cephfs_yili/shared/xuehan/H1_RL/tracked_2165_0.5_names.pkl')
+
         if self.cond_test:
             human_data_dict = joblib.load(human_data_path)
-            # import pytorch_kinematics as pk
-            # chain = pk.build_chain_from_urdf(open("/home/ubuntu/workspace/H1_RL/HST/legged_gym/resources/robots/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
-            # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
+            
+        
         for name, recycle_data in recycle_data_dict.items():
-            if name not in retarget_data_dict.keys():
+            if name not in retarget_data_dict.keys() or name not in names_50:
                 continue
             # if data_pair is None:
             #     continue
@@ -366,11 +378,20 @@ class MotionDataset(torch.utils.data.Dataset):
             recycle_jt = torch.from_numpy(recycle_data['jt'])[:,:19]#.to(device)
             recycle_global_pos = torch.from_numpy(recycle_data['global'])[:,:3]#.to(device)
             recycle_global_ori = torch.from_numpy(recycle_data['global'])[:,h1_num_bodies*3:h1_num_bodies*3+6]#.to(device)
+            # breakpoint()
 
             if self.cond_test:
-                human_jt = human_data_dict[name]['local_rotation'].reshape(-1,(human_num_bodies-1)*6)
-                # target_jt_A[:,0] = 0
+                human_link = human_data_dict[name]['global_translation'].reshape(-1,(human_num_bodies),3)
+                to_ground = human_link[...,-1].min()
+                human_link[...,-1] = human_link[...,-1] - to_ground
+                left_hand_tg= human_link[:,24-6]
+                right_hand_tg= human_link[:,24-1]
+                left_ankle_tg = human_link[:,3]
+                right_ankle_tg = human_link[:,7]
                 human_root = human_data_dict[name]['root_transformation']
+                root_quat = vec6d_to_quat(human_root[:,-6:].reshape(-1,3,2))
+                human_jt, human_root = get_cond(None, root_quat, left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg)
+                # target_jt_A[:,0] = 0
                 self.jt_C.append(human_jt)
                 self.root_C.append(human_root)
             elif self.cond_train:
@@ -387,21 +408,8 @@ class MotionDataset(torch.utils.data.Dataset):
                 # pelvis_link = ret['left_knee_link']
                 # pelvis_tg = pelvis_link.get_matrix()[:,:3,3]
                 root_quat = vec6d_to_quat(recycle_global_ori.reshape(-1,3,2))
-                left_hand_global = quat_apply(root_quat, left_hand_tg) + recycle_global_pos
-                right_hand_global = quat_apply(root_quat, right_hand_tg) + recycle_global_pos
-                left_ankle_global = quat_apply(root_quat, left_ankle_tg) + recycle_global_pos
-                right_ankle_global = quat_apply(root_quat, right_ankle_tg) + recycle_global_pos
+                cond_jt, cond_root = get_cond(recycle_global_pos, root_quat, left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg)
 
-                mean_pos_global =  (left_hand_global + right_hand_global + left_ankle_global + right_ankle_global)/4
-                heading_quat_inv = calc_heading_quat_inv(root_quat)
-
-                left_hand_tg = quat_apply(heading_quat_inv, left_hand_global - mean_pos_global)
-                right_hand_tg = quat_apply(heading_quat_inv, right_hand_global - mean_pos_global)
-                left_ankle_tg = quat_apply(heading_quat_inv, left_ankle_global - mean_pos_global)
-                right_ankle_tg = quat_apply(heading_quat_inv, right_ankle_global - mean_pos_global)
-
-                cond_jt = torch.concat([left_hand_tg, right_hand_tg, left_ankle_tg, right_ankle_tg, mean_pos_global], dim=1)
-                cond_root = calc_heading_quat(root_quat)[...,2:]
                 self.jt_C.append(cond_jt)
                 self.root_C.append(cond_root)
 
@@ -475,8 +483,8 @@ class MotionDataset(torch.utils.data.Dataset):
             B = jt_root_B[pose_id:pose_id+self.window_size]
             if cond:
                 C = jt_root_C[pose_id:pose_id+self.window_size]
-                return B, A, C
-            return B, A
+                return B, A, C, index
+            return B, A, index
         else:
             A = jt_root_A
             B = jt_root_B

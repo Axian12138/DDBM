@@ -267,7 +267,7 @@ def load_data_motion(
     # data_path_B,
     batch_size,
     deterministic=False,
-    include_test=False,
+    train=False,
     seed=42,
     num_workers=2,
     human_data_path = None,
@@ -280,25 +280,23 @@ def load_data_motion(
   # Compute batch size for this worker.
     # root = data_dir
   
-
     from .aligned_dataset import MotionDataset
-    trainset = MotionDataset(recycle_data_path, retarget_data_path, train=True,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=overlap,window_size=window_size,mixed_data=mixed_data)
 
-    valset = MotionDataset(recycle_data_path, retarget_data_path, train=not include_test,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=-1,window_size=window_size,)
-    if include_test:
-        # testset = MotionDataset(dataroot=root, train=False)
-        ...
-
+    if train:
+        trainset = MotionDataset(recycle_data_path, retarget_data_path, train=train,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=overlap,window_size=window_size,mixed_data=mixed_data)
 
     
-    loader = DataLoader(
-        dataset=trainset, num_workers=num_workers, pin_memory=True,
-        batch_sampler=DistInfiniteBatchSampler(
-            dataset_len=len(trainset), glb_batch_size=batch_size*dist.get_world_size(), seed=seed,
-            shuffle=not deterministic, filling=True, rank=dist.get_rank(), world_size=dist.get_world_size(),
+        loader = DataLoader(
+            dataset=trainset, num_workers=num_workers, pin_memory=True,
+            batch_sampler=DistInfiniteBatchSampler(
+                dataset_len=len(trainset), glb_batch_size=batch_size*dist.get_world_size(), seed=seed,
+                shuffle=not deterministic, filling=True, rank=dist.get_rank(), world_size=dist.get_world_size(),
+            )
         )
-    )
-    
+    else:
+        loader = None
+    valset = MotionDataset(recycle_data_path, retarget_data_path, train=train,human_data_path=human_data_path,load_pose=load_pose,norm=norm,overlap=-1,window_size=window_size,)
+
     
     num_tasks = dist.get_world_size()
     global_rank = dist.get_rank()
@@ -322,4 +320,4 @@ def load_data_motion(
         
     #     return loader, val_loader, test_loader
     # else:
-    return loader, val_loader, trainset.cov_xy
+    return loader, val_loader, None

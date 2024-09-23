@@ -100,7 +100,7 @@ def main():
         # data_path_B=args.data_path_B,
         deterministic = True,
         batch_size=args.batch_size,
-        include_test = True,
+        train = False,
         num_workers=args.num_workers,
         seed=args.seed,
         human_data_path=args.human_data_path,
@@ -129,10 +129,10 @@ def main():
         # x0 = x0_image.to(dist_util.dev()) * 2 -1
         
         y0 = data[1].to(dist_util.dev())
+        cond = data[2].to(dist_util.dev())
         
         # y0 = y0_image.to(dist_util.dev()) * 2 - 1
-        model_kwargs = {'xT': y0}
-        index = data[2].to(dist_util.dev())
+        model_kwargs = {'xT': y0, 'cond': cond}
 
         bs = x0.shape[0]
         length, window_size, overlap = x0.shape[1], args.window_size, args.overlap
@@ -202,6 +202,7 @@ def main():
         gathered_ys = [th.zeros_like(y0) for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_ys, y0)
 
+        index = data[3].to(dist_util.dev())
         
         if index is not None:
             gathered_index = [0 for _ in range(dist.get_world_size())]
@@ -265,7 +266,7 @@ def main():
         # change the first word of args.recycle_data_path before _ to denoise_jtroot
         # prefix = args.retarget_data_path.split("/")[-1].split("_")[0]
         # out_path=args.retarget_data_path.replace(prefix,"denoise_jtroot")
-        out_file=f"denoise_jtroot_{len(motion_pkls)}_{args.exp[:5]}_o{args.overlap}_s{step}_" + os.path.basename(args.retarget_data_path)
+        out_file=f"dn_jtroot_{len(motion_pkls)}_{args.exp[:7]}_o{args.overlap}_s{step}_" + os.path.basename(args.retarget_data_path)
         out_path=os.path.join(os.path.dirname(args.retarget_data_path), out_file)
         # out_path=f"/home/ubuntu/data/PHC/{filename}"
         logger.log(f"saving to {out_path}")

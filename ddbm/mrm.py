@@ -328,7 +328,7 @@ class MRM(nn.Module):
                 x = self.seqTransDecoder(tgt=xseq, memory=emb)[1:] # [seqlen, bs, d] # FIXME - maybe add a causal mask
             else:
                 x = self.seqTransDecoder(tgt=xseq, memory=emb)
-        
+
         elif self.arch == 'trans':
 
             xTseq = torch.cat((emb, xT), axis=0)  # [seqlen+1, bs, d]

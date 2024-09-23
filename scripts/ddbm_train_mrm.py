@@ -104,6 +104,7 @@ def main(args):
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         human_data_path=args.human_data_path,
+        train=True,
         load_pose = args.load_pose,
         norm = args.normalize,
         overlap=args.overlap,

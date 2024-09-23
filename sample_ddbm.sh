@@ -16,7 +16,7 @@ GEN_SAMPLER=heun
 BS=1
 NGPU=1
 
-CUDA_VISIBLE_DEVICES=3 mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
+CUDA_VISIBLE_DEVICES=1 mpiexec -n $NGPU python scripts/image_sample_mrm.py --exp=$EXP \
     --batch_size $BS --churn_step_ratio $CHURN_STEP_RATIO --steps $N --sampler $GEN_SAMPLER \
     --model_path $MODEL_PATH --attention_resolutions $ATTN  --class_cond False --pred_mode $PRED \
     ${BETA_D:+ --beta_d="${BETA_D}"} ${BETA_MIN:+ --beta_min="${BETA_MIN}"}  \
