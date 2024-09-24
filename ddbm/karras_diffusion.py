@@ -285,8 +285,8 @@ def karras_sample(
     sampler_args = dict(
             pred_mode=diffusion.pred_mode, churn_step_ratio=churn_step_ratio, sigma_max=sigma_max
         )
-    def denoiser(x_t, sigma, x_T=None):
-        _, denoised = diffusion.denoise(model, x_t, sigma, **model_kwargs)
+    def denoiser(x_t, sigma, model_kwargs={}):
+        _, denoised = diffusion.denoise(model, x_t, sigma, model_kwargs)
         
         # if clip_denoised:
         #     denoised = denoised.clamp(-1, 1)
@@ -353,18 +353,16 @@ def karras_sample_overlap(
 
 
     sample_fn = {
-        "heun": partial(sample_heun_overlap_v2, beta_d=diffusion.beta_d, beta_min=diffusion.beta_min, window_size=24),
+        "heun": partial(sample_heun_overlap_v3, beta_d=diffusion.beta_d, beta_min=diffusion.beta_min, window_size=24),
     }[sampler]
 
     sampler_args = dict(
             pred_mode=diffusion.pred_mode, churn_step_ratio=churn_step_ratio, sigma_max=sigma_max
         )
-    def denoiser(x_t, sigma, x_T=None):
-        _, denoised = diffusion.denoise(model, x_t, sigma, **model_kwargs)
-        
-        # if clip_denoised:
-        #     denoised = denoised.clamp(-1, 1)
-                
+
+    def denoiser(x_t, sigma, model_kwargs={}):
+        _, denoised = diffusion.denoise(model, x_t, sigma, model_kwargs)
+
         return denoised
     def bridge_sample(x0, xT, t):
         dims=x0.ndim
@@ -406,6 +404,7 @@ def karras_sample_overlap(
         L_A,
         L_B_gt,
         sigmas,
+        model_kwargs=model_kwargs,
         progress=progress,
         callback=callback,
         guidance=guidance,
@@ -792,6 +791,7 @@ def sample_heun_overlap_v2(
 
     nfe = 0
     assert churn_step_ratio < 1
+    breakpoint()
 
     if pred_mode.startswith('vp'):
         vp_snr_sqrt_reciprocal = lambda t: (np.e ** (0.5 * beta_d * (t ** 2) + beta_min * t) - 1) ** 0.5
@@ -836,7 +836,7 @@ def sample_heun_overlap_v2(
         denoised = cat_overlap(denoised)
         denoised_error.append(mean_flat((denoised - gt) ** 2))
         denoised = get_windows(denoised)
-        # breakpoint()
+        breakpoint()
         if pred_mode.startswith('ve'):
             # d =  (x - denoised ) / append_dims(sigma_hat, x.ndim)
             d = to_d(x, sigma_hat, denoised, x_T, sigma_max, w=guidance)
@@ -866,6 +866,161 @@ def sample_heun_overlap_v2(
             x_2 = x + d * dt
             
             denoised_2 = denoiser(x_2, sigmas[i + 1] * s_in, x_T)
+            denoised_2 = cat_overlap(denoised_2)
+            denoised_error.append(mean_flat((denoised_2 - gt) ** 2))
+            denoised_2 = get_windows(denoised_2)
+            if pred_mode.startswith('ve'):
+                # d_2 =  (x_2 - denoised_2) / append_dims(sigmas[i + 1], x.ndim)
+                d_2 = to_d(x_2,  sigmas[i + 1], denoised_2, x_T, sigma_max, w=guidance)
+            elif pred_mode.startswith('vp'):
+                d_2 = get_d_vp(x_2, denoised_2, x_T, std(sigmas[i + 1]),logsnr(sigmas[i + 1]), logsnr_T, logs(sigmas[i + 1]), logs_T, s_deriv(sigmas[i + 1]),
+                                vp_snr_sqrt_reciprocal(sigmas[i + 1]), vp_snr_sqrt_reciprocal_deriv(sigmas[i + 1]), guidance)
+            
+            d_prime = (d + d_2) / 2
+
+            # noise = th.zeros_like(x) if 'flow' in pred_mode or pred_mode == 'uncond' else generator.randn_like(x)
+            x = x + d_prime * dt #+ noise * (sigmas[i + 1]**2 - sigma_hat**2).abs() ** 0.5
+            nfe += 1
+            x_error.append(mean_flat((cat_overlap(x) - gt) ** 2))
+        # loss = (denoised.detach().cpu() - x0).pow(2).mean().item()
+        # losses.append(loss)
+
+        path.append(x.detach().cpu())
+        
+    x = cat_overlap(x)
+    return x, path, nfe, denoised_error, x_error
+
+
+@th.no_grad()
+def sample_heun_overlap_v3(
+    denoiser,
+    # bridge_sample,
+    x,
+    gt,
+    sigmas,
+    model_kwargs,
+    overlap,
+    window_size,
+    pred_mode='both',
+    progress=False,
+    callback=None,
+    sigma_max=80.0,
+    beta_d=2,
+    beta_min=0.1,
+    churn_step_ratio=0.,
+    guidance=1,
+):
+    
+    """Implements Algorithm 2 (Heun steps) from Karras et al. (2022)."""
+    def get_windows(x_input):
+        assert x_input.shape[0] == 1
+        windows = [x_input[0][s:s+window_size] for (s,e) in overlap]
+        return th.stack(windows, dim=0)
+    
+    def cat_overlap(x_output):
+        assert x_output.shape[0] == len(overlap)
+        x_cat = []
+        interval_last=0
+        for i, (s,e) in enumerate(overlap[1:]):
+            interval = e-s
+            x_cat.append(x_output[i,interval_last:window_size-interval])
+            x_cat.append((x_output[i,window_size-interval:] + x_output[i+1,:interval])/2.)
+            interval_last = interval
+        x_cat.append(x_output[-1,interval_last:])
+        x_cat = th.cat(x_cat, dim=0)
+        return x_cat.unsqueeze(0)
+    assert 0 in sigmas
+    cond = get_windows(model_kwargs["cond"])
+    x = get_windows(x)
+    x_T = x
+    path = [x]
+    denoised_error=[]
+    x_error=[]
+    
+    s_in = x.new_ones([x.shape[0]])
+    indices = range(len(sigmas) - 1)
+    if progress:
+        from tqdm.auto import tqdm
+
+        indices = tqdm(indices)
+
+    nfe = 0
+    assert churn_step_ratio < 1
+    # breakpoint()
+
+    if pred_mode.startswith('vp'):
+        vp_snr_sqrt_reciprocal = lambda t: (np.e ** (0.5 * beta_d * (t ** 2) + beta_min * t) - 1) ** 0.5
+        vp_snr_sqrt_reciprocal_deriv = lambda t: 0.5 * (beta_min + beta_d * t) * (vp_snr_sqrt_reciprocal(t) + 1 / vp_snr_sqrt_reciprocal(t))
+        s = lambda t: (1 + vp_snr_sqrt_reciprocal(t) ** 2).rsqrt()
+        s_deriv = lambda t: -vp_snr_sqrt_reciprocal(t) * vp_snr_sqrt_reciprocal_deriv(t) * (s(t) ** 3)
+
+        logs = lambda t: -0.25 * t ** 2 * (beta_d) - 0.5 * t * beta_min
+        
+        std =  lambda t: vp_snr_sqrt_reciprocal(t) * s(t)
+        
+        logsnr = lambda t :  - 2 * th.log(vp_snr_sqrt_reciprocal(t))
+
+        logsnr_T = logsnr(th.as_tensor(sigma_max))
+        logs_T = logs(th.as_tensor(sigma_max))
+    
+    for j, i in enumerate(indices):
+        
+        if churn_step_ratio > 0: # NOTE(xh) only at beginning refer to paper?
+            # 1 step euler
+            sigma_hat = (sigmas[i+1] - sigmas[i]) * churn_step_ratio + sigmas[i]
+            
+            denoised = denoiser(x, sigmas[i] * s_in, x_T)
+            if pred_mode.startswith('ve'):
+                d_1, gt2 = to_d(x, sigmas[i] , denoised, x_T, sigma_max,  w=guidance, stochastic=True)
+            elif pred_mode.startswith('vp'):
+                d_1, gt2 = get_d_vp(x, denoised, x_T, std(sigmas[i]),logsnr(sigmas[i]), logsnr_T, logs(sigmas[i] ), logs_T, s_deriv(sigmas[i] ), vp_snr_sqrt_reciprocal(sigmas[i] ), vp_snr_sqrt_reciprocal_deriv(sigmas[i] ), guidance, stochastic=True)
+            
+            dt = (sigma_hat - sigmas[i]) 
+            x = x + d_1 * dt + th.randn_like(x) *((dt).abs() ** 0.5)*gt2.sqrt()
+            
+            nfe += 1
+            denoised_error.append(mean_flat((denoised - gt) ** 2))
+            x_error.append(mean_flat((x - gt) ** 2))
+            
+            path.append(x.detach().cpu())
+        else:
+            sigma_hat =  sigmas[i]
+        
+        # heun step
+        denoised = denoiser(x, sigma_hat * s_in, {'cond':cond})
+        denoised = cat_overlap(denoised)
+        denoised_error.append(mean_flat((denoised - gt) ** 2))
+        denoised = get_windows(denoised)
+        # breakpoint()
+        if pred_mode.startswith('ve'):
+            # d =  (x - denoised ) / append_dims(sigma_hat, x.ndim)
+            d = to_d(x, sigma_hat, denoised, x_T, sigma_max, w=guidance)
+        elif pred_mode.startswith('vp'):
+            d = get_d_vp(x, denoised, x_T, std(sigma_hat),logsnr(sigma_hat), logsnr_T, logs(sigma_hat), logs_T, s_deriv(sigma_hat), vp_snr_sqrt_reciprocal(sigma_hat), vp_snr_sqrt_reciprocal_deriv(sigma_hat), guidance)
+            
+        nfe += 1
+        # breakpoint()
+        x_error.append(mean_flat((cat_overlap(x) - gt) ** 2))
+        if callback is not None:
+            callback(
+                {
+                    "x": x,
+                    "i": i,
+                    "sigma": sigmas[i],
+                    "sigma_hat": sigma_hat,
+                    "denoised": denoised,
+                }
+            )
+        dt = sigmas[i + 1] - sigma_hat
+        if sigmas[i + 1] == 0:
+            
+            x = x + d * dt 
+            
+        else:
+            # Heun's method
+            x_2 = x + d * dt
+            
+            denoised_2 = denoiser(x_2, sigmas[i + 1] * s_in, {'cond':cond})
             denoised_2 = cat_overlap(denoised_2)
             denoised_error.append(mean_flat((denoised_2 - gt) ** 2))
             denoised_2 = get_windows(denoised_2)
