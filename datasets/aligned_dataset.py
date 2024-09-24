@@ -131,7 +131,12 @@ class MotionDataset_v0(torch.utils.data.Dataset):
             human_data_dict = joblib.load(human_data_path)
             # import pytorch_kinematics as pk
             # chain = pk.build_chain_from_urdf(open("/home/ubuntu/workspace/H1_RL/HST/legged_gym/resources/robots/h1/urdf/h1_add_hand_link_for_pk.urdf","rb").read())
-            # human_node_names=['Pelvis', 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
+            # human_node_names=['Pelvis', 
+            # 'L_Hip', 'L_Knee', 'L_Ankle', 'L_Toe', 
+            # 'R_Hip', 'R_Knee', 'R_Ankle', 'R_Toe', 
+            # 'Torso', 'Spine', 'Chest', 'Neck', 'Head', 
+            # 'L_Thorax', 'L_Shoulder', 'L_Elbow', 'L_Wrist', 'L_Hand', 
+            # 'R_Thorax', 'R_Shoulder', 'R_Elbow', 'R_Wrist', 'R_Hand']
         for name, recycle_data in recycle_data_dict.items():
             if name not in retarget_data_dict.keys():
                 continue
